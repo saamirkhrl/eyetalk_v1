@@ -4,7 +4,6 @@ import {
   type CategoryId,
   CONFIG,
   conceptText,
-  type CursorMode,
   type FaceFrame,
   findWord,
   type Point,
@@ -17,22 +16,13 @@ import {
   CalibrationScreen,
   DwellController,
   HistoryPanel,
-  Hud,
   LandingScreen,
   SetupScreen,
   toast,
-  type SystemAction,
 } from '../ui/index.ts';
 import { bothEyesClosed, FaceTracker, LandmarkOverlay } from '../vision/index.ts';
 
 type Phase = 'landing' | 'setup' | 'calibrate' | 'board';
-
-const SYSTEM_BY_TILE: Record<string, SystemAction> = {
-  cursor: 'toggleCursor',
-  overlay: 'toggleOverlay',
-  recalibrate: 'recalibrate',
-  stop: 'stopSpeech',
-};
 
 export class App {
   private mount: HTMLElement;
@@ -45,10 +35,10 @@ export class App {
   private dwell = new DwellController();
   private speaker = new Speaker();
   private llm = new LlmClient();
+  // not shown on the board anymore, still feeds recent turns to the prompt.
   private history = new HistoryPanel();
 
   private board: Board;
-  private hud: Hud;
   private calibration = new CalibrationScreen();
 
   private concepts: string[] = [];
@@ -57,7 +47,6 @@ export class App {
   private dwellCommitting = false;
   private generating = false;
   private candidates: string[] = [];
-  private candidateSource: 'model' | 'fallback' = 'fallback';
 
   private mouseMode = false;
   private mousePoint: Point | null = null;
@@ -76,17 +65,13 @@ export class App {
       onWord: (id) => this.addConcept(id),
       onCategory: (id) => this.openCategory(id),
       onShowCategories: () => this.showCategories(),
-      onUndo: () => this.undoConcept(),
       onRemoveConcept: (i) => this.removeConcept(i),
       onClear: () => this.clearConcepts(),
       onSpeakRaw: () => this.speakRaw(),
       onCandidate: (i) => this.chooseCandidate(i),
       onBack: () => this.backToConcepts(),
-      onSystem: (a) => this.onSystem(a),
     });
     this.board.onTargetsChanged(() => this.syncTargets());
-
-    this.hud = new Hud();
 
     this.dwell.onFire((id, rect) => this.onDwellFire(id, rect));
     this.dwell.onCancel(() => {
@@ -275,7 +260,7 @@ export class App {
             4400,
           );
         } else if (badFit) {
-          toast(`Calibrated but loose (${px}px). Press C to redo, or M for head mode.`, 'warn', 4200);
+          toast(`Calibrated but loose (${px}px). Press C to redo.`, 'warn', 4200);
         } else if (noSway) {
           toast(
             `Calibrated (${px}px), but your head barely moved during the head-movement dots - ` +
@@ -310,28 +295,18 @@ export class App {
   private showBoard(): void {
     this.phase = 'board';
     this.dwell.enabled = true;
-    // back from recalib, menu might still be open behind us.
-    this.board.closeMenu();
-    this.board.setRecalibrateAvailable(!this.mouseMode);
-    this.syncSystemState();
 
     const wrap = document.createElement('div');
     wrap.className = 'screen';
 
-    const left = document.createElement('div');
-    left.className = 'pointer-events-auto absolute top-6 left-6 z-20 flex flex-col gap-3';
-    left.style.width = sidePanelWidthCss();
-    left.appendChild(this.history.root);
-
+    // only holds the debug overlay (D key), hidden by default. same clamp
+    // `layoutring` reserves so it never sits over a tile.
     const right = document.createElement('div');
-    // explicit width on purpose. without it the column is sized by its widest
-    // child, so toggling the overlay on widened the column and shunted the
-    // right-anchored hud left. it is the same clamp `layoutring` reserves.
     right.className = 'pointer-events-auto absolute top-6 right-6 z-20 flex flex-col gap-3';
     right.style.width = sidePanelWidthCss();
-    right.append(this.hud.root, this.overlay.root);
+    right.appendChild(this.overlay.root);
 
-    wrap.append(this.board.root, left, right);
+    wrap.append(this.board.root, right);
     this.setScreen(wrap);
 
     this.cursor.setVisible(true);
@@ -356,7 +331,6 @@ export class App {
         this.cursor.move(this.mousePoint);
         this.dwell.update(this.mousePoint, false, t);
       }
-      this.refreshHud();
     };
     requestAnimationFrame(loop);
   }
@@ -376,10 +350,7 @@ export class App {
       this.calibration.onFrame(frame, t);
       return;
     }
-    if (this.phase !== 'board' || this.mouseMode) {
-      this.refreshHud();
-      return;
-    }
+    if (this.phase !== 'board' || this.mouseMode) return;
 
     if (!frame) {
       // face lost: freeze the cursor where it was rather than snapping it to a
@@ -392,7 +363,6 @@ export class App {
         toast('No face detected - selection is paused until tracking returns', 'warn', 3200);
       }
       this.dwell.update(null, false, t);
-      this.refreshHud();
       return;
     }
     this.faceLostSince = null;
@@ -404,28 +374,6 @@ export class App {
     const point = closed ? this.estimator.point : this.estimator.update(frame);
     if (point) this.cursor.move(point);
     this.dwell.update(point, closed, t);
-    this.refreshHud();
-  }
-
-  private hudTick = 0;
-
-  private refreshHud(): void {
-    // the hud is text; 60 hz updates are wasted layout work.
-    if (performance.now() - this.hudTick < 250) return;
-    this.hudTick = performance.now();
-    const s = this.llm.state;
-    this.hud.update({
-      cursorMode: this.estimator.mode,
-      debugOn: this.overlay.isVisible(),
-      llm:
-        s.kind === 'ready'
-          ? `${s.backend}${this.llm.lastGenMs ? ` ${(this.llm.lastGenMs / 1000).toFixed(1)}s` : ''}`
-          : s.kind === 'loading'
-            ? `${Math.round(s.pct)}%`
-            : s.kind === 'failed'
-              ? 'templates'
-              : 'idle',
-    });
   }
 
   /* ---------------------------------------------------------------- selection */
@@ -450,13 +398,9 @@ export class App {
       }
     } else if (id.startsWith('cat:')) this.openCategory(id.slice(4) as CategoryId);
     else if (id === 'action:categories') this.showCategories();
-    else if (id === 'action:undo') this.undoConcept();
     else if (id === 'action:clear') this.clearConcepts();
     else if (id === 'action:speak') this.speakRaw();
     else if (id === 'action:back') this.backToConcepts();
-    else if (id === 'action:settings') this.board.openMenu();
-    else if (id === 'sys:close') this.board.closeMenu();
-    else if (id.startsWith('sys:')) this.onSystem(SYSTEM_BY_TILE[id.slice(4)]!);
     else if (id.startsWith('cand:')) this.chooseCandidate(Number(id.slice(5)));
   }
 
@@ -539,7 +483,6 @@ export class App {
     this.board.showThinking(concepts);
     this.syncTargets();
 
-    const off = this.llm.onToken((text) => this.board.appendStream(text));
     let suggestion;
     try {
       suggestion = await this.llm.suggest(concepts, this.history.recent(CONFIG.llm.historyTurns));
@@ -553,7 +496,6 @@ export class App {
         ms: 0,
       };
     } finally {
-      off();
       this.generating = false;
     }
 
@@ -571,8 +513,7 @@ export class App {
       const dup = this.candidates.some((s) => normalise(s) === normalise(plain));
       if (!dup) plainIndex = this.candidates.push(plain) - 1;
     }
-    this.candidateSource = suggestion.source;
-    this.board.showCandidates(this.candidates, this.candidateSource, plainIndex);
+    this.board.showCandidates(this.candidates, plainIndex);
     this.syncTargets();
   }
 
@@ -617,19 +558,6 @@ export class App {
     if (spoken) this.board.showSpoken(spoken, CONFIG.ui.spokenHoldMs);
   }
 
-  /**
-   * remove the last concept. magnetic targets make the occasional wrong tile
-   * unavoidable, and before this the only remedy was clear, which threw away
-   * the words the user had got right along with the one they had not.
-   */
-  private undoConcept(): void {
-    if (!this.concepts.length) {
-      toast('Nothing to undo', 'info', 1400);
-      return;
-    }
-    this.removeConcept(this.concepts.length - 1);
-  }
-
   private removeConcept(index: number): void {
     const removed = this.concepts[index];
     if (removed === undefined) return;
@@ -664,69 +592,20 @@ export class App {
 
   /* ---------------------------------------------------------------- controls */
 
-  private toggleDebug(): void {
-    this.overlay.setVisible(!this.overlay.isVisible());
-    this.refreshHud();
-  }
-
-  private toggleCursorMode(): void {
-    const next: CursorMode = this.estimator.mode === 'iris' ? 'head' : 'iris';
-    const r = this.estimator.setMode(next);
-    if (r.refit) {
-      toast(
-        `Cursor: ${next === 'iris' ? 'iris + head pose' : 'head pose'} - refit, ` +
-          `error ${Math.round(r.errorPx)}px`,
-        'good',
-        2600,
-      );
-    } else if (!this.estimator.calibrated) {
-      toast('Switched mode - calibrate to use it', 'warn', 2600);
-    }
-    this.refreshHud();
-  }
-
-  private onSystem(action: SystemAction): void {
-    switch (action) {
-      case 'recalibrate':
-        this.board.closeMenu();
-        this.startCalibration();
-        break;
-      case 'toggleCursor':
-        this.toggleCursorMode();
-        this.syncSystemState();
-        break;
-      case 'toggleOverlay':
-        this.toggleDebug();
-        this.syncSystemState();
-        break;
-      case 'stopSpeech':
-        this.speaker.stop();
-        toast('Speech stopped', 'info', 1400);
-        break;
-    }
-  }
-
-  private syncSystemState(): void {
-    this.board.setSystemState({
-      cursorMode: this.estimator.mode,
-      overlayOn: this.overlay.isVisible(),
-    });
-  }
-
+  // caregiver-only keys, nothing on screen for them. cursor is always iris +
+  // head pose, so there's no mode switch.
   private onKey(e: KeyboardEvent): void {
     if (e.target instanceof HTMLInputElement) return;
     switch (e.key.toLowerCase()) {
       case 'd':
-        this.onSystem('toggleOverlay');
-        break;
-      case 'm':
-        this.onSystem('toggleCursor');
+        this.overlay.setVisible(!this.overlay.isVisible());
         break;
       case 'c':
-        if (this.phase === 'board') this.onSystem('recalibrate');
+        if (this.phase === 'board') this.startCalibration();
         break;
       case 's':
-        this.onSystem('stopSpeech');
+        this.speaker.stop();
+        toast('Speech stopped', 'info', 1400);
         break;
       default:
         break;

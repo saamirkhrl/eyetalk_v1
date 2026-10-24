@@ -59,7 +59,11 @@ The board opens on a ring of six categories. Each one opens a ring of eight word
 
 Picked words stay selected while you move between categories, so one message can mix
 words from several of them ("where" + "mom" becomes "Where is my mom?"). Speak and Clear
-empty the selection and return to the categories; Undo removes the last word.
+empty the selection and return to the categories.
+
+The board is kept deliberately bare: the word ring and a few large action tiles, with no
+status panels, history column or settings menu. The cursor always follows eyes and head
+together, so there is no mode to pick.
 
 ## Controls
 
@@ -69,10 +73,10 @@ empty the selection and return to the categories; Undo removes the last word.
 | Pick a word | dwell on a word tile in the ring | click |
 | Back to the category ring | dwell on `Back to categories` | click |
 | Speak / Clear / Back | dwell on a bottom action tile | click |
-| Remove the last word | dwell on `Undo last` | click, or click any selected word |
-| Cursor source (iris vs head pose) | Settings menu | `M` |
-| Recalibrate | Settings menu | `C` |
-| Stop speech | Settings menu | `S` |
+| Remove a picked word | - | click the selected word |
+| Recalibrate | - | `C` (caregiver) |
+| Stop speech | - | `S` (caregiver) |
+| Landmark debug overlay | - | `D` (caregiver) |
 | Cancel a selection in progress | shut both eyes briefly | - |
 
 Every tile is also clickable, so the whole app works with just a mouse if the camera is

@@ -3,25 +3,15 @@ import { CATEGORIES, CONFIG, type CategoryId, sidePanelWidthPx } from '../core/i
 import type { DwellTarget } from './dwell.ts';
 import { Tile } from './tile.ts';
 
-/** the operator controls that used to be keyboard shortcuts. */
-export type SystemAction = 'recalibrate' | 'toggleCursor' | 'toggleOverlay' | 'stopSpeech';
-
 export interface BoardCallbacks {
   onWord: (id: string) => void;
   onCategory: (id: CategoryId) => void;
   onShowCategories: () => void;
-  onUndo: () => void;
   onRemoveConcept: (index: number) => void;
   onClear: () => void;
   onSpeakRaw: () => void;
   onCandidate: (index: number) => void;
   onBack: () => void;
-  onSystem: (action: SystemAction) => void;
-}
-
-export interface SystemState {
-  cursorMode: 'iris' | 'head';
-  overlayOn: boolean;
 }
 
 export class Board {
@@ -31,21 +21,16 @@ export class Board {
   private candidateWrap: HTMLDivElement;
   private actionsWrap: HTMLDivElement;
 
-  private menuWrap: HTMLDivElement;
-  private modeDesc!: { iris: HTMLElement; head: HTMLElement };
-
   private categoryTiles = new Map<CategoryId, Tile>();
   /** every word tile across all categories, keyed by word id (ids are unique). */
   private wordTiles = new Map<string, Tile>();
   private actionTiles = new Map<string, Tile>();
-  private menuTiles = new Map<string, Tile>();
   private candidateTiles: Tile[] = [];
   private cb: BoardCallbacks;
 
   mode: 'concepts' | 'candidates' = 'concepts';
   /** which ring is showing in concepts mode: a category's words, or (null) the categories. */
   private view: CategoryId | null = null;
-  private menuOpen = false;
   private concepts: string[] = [];
   private changeHandlers = new Set<() => void>();
   private composeBar: HTMLElement | null = null;
@@ -65,18 +50,14 @@ export class Board {
            gap-3 px-6"></div>
       <div data-actions class="absolute inset-x-0 bottom-6 flex items-end justify-between
            px-6"></div>
-      <div data-menu class="absolute inset-0 z-30 hidden flex-col items-center justify-center
-           gap-4 bg-ink-950/80 backdrop-blur-sm"></div>
     `;
     this.ring = this.root.querySelector('[data-ring]')!;
     this.centre = this.root.querySelector('[data-centre]')!;
     this.candidateWrap = this.root.querySelector('[data-candidates]')!;
     this.actionsWrap = this.root.querySelector('[data-actions]')!;
-    this.menuWrap = this.root.querySelector('[data-menu]')!;
 
     this.buildWordRing();
     this.buildActions();
-    this.buildMenu();
     this.renderCentre();
 
     window.addEventListener('resize', () => this.layoutRing());
@@ -182,15 +163,6 @@ export class Board {
     const right = document.createElement('div');
     right.className = 'flex gap-3';
 
-    const undo = new Tile({
-      id: 'action:undo',
-      label: 'Undo last',
-      sublabel: 'remove one word',
-      variant: 'action',
-      onClick: () => this.cb.onUndo(),
-    });
-    undo.el.style.display = 'none';
-
     const clear = new Tile({
       id: 'action:clear',
       label: 'Clear',
@@ -223,193 +195,25 @@ export class Board {
     });
     categories.el.style.display = 'none';
 
-    const settings = new Tile({
-      id: 'action:settings',
-      label: 'Settings',
-      sublabel: 'cursor, overlay',
-      variant: 'action',
-      onClick: () => this.openMenu(),
-    });
-
-    for (const t of [undo, clear, speak, back, categories, settings]) {
+    for (const t of [clear, speak, back, categories]) {
       t.el.classList.add('pointer-events-auto', 'min-w-32');
     }
 
-    const centre = document.createElement('div');
-    centre.className = 'flex gap-3';
-    centre.appendChild(settings.el);
-
-    left.append(undo.el, clear.el);
+    left.append(clear.el);
     right.append(back.el, categories.el, speak.el);
-    this.actionsWrap.append(left, centre, right);
+    this.actionsWrap.append(left, right);
 
-    this.actionTiles.set('undo', undo);
     this.actionTiles.set('clear', clear);
     this.actionTiles.set('speak', speak);
     this.actionTiles.set('back', back);
     this.actionTiles.set('categories', categories);
-    this.actionTiles.set('settings', settings);
-  }
-
-  /* ------------------------------------------------------------------- menu */
-
-  private buildMenu(): void {
-    const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 gap-4';
-
-    const header = document.createElement('div');
-    header.className = 'text-[11px] font-semibold tracking-[0.22em] text-slate-500 uppercase';
-    header.textContent = 'settings';
-
-    const mk = (key: string, label: string, sublabel: string, fn: () => void) => {
-      const tile = new Tile({
-        id: `sys:${key}`,
-        label,
-        sublabel,
-        variant: 'action',
-        onClick: fn,
-      });
-      tile.el.classList.add('pointer-events-auto', 'min-w-56', 'justify-center', 'py-6');
-      this.menuTiles.set(key, tile);
-      grid.appendChild(tile.el);
-      return tile;
-    };
-
-    mk('cursor', 'Cursor: iris', 'switch source', () => this.cb.onSystem('toggleCursor'));
-    mk('overlay', 'Overlay: off', 'face tracking view', () => this.cb.onSystem('toggleOverlay'));
-    mk('recalibrate', 'Recalibrate', 'run the dots again', () => this.cb.onSystem('recalibrate'));
-    mk('stop', 'Stop speaking', 'cut the current sentence', () => this.cb.onSystem('stopSpeech'));
-
-    const legend = this.buildLegend();
-
-    const close = new Tile({
-      id: 'sys:close',
-      label: 'Close',
-      sublabel: 'back to the board',
-      variant: 'action',
-      onClick: () => this.closeMenu(),
-    });
-    close.el.classList.add('pointer-events-auto', 'min-w-56', 'py-5');
-    this.menuTiles.set('close', close);
-
-    this.menuWrap.append(header, grid, legend, close.el);
-  }
-
-  /**
-   * static reference panel, not a dwell target - `targets()` only reads from
-   * `menutiles`, so this is safe to leave in the menu without it stealing a
-   * gaze that was meant for one of the toggle tiles.
-   *
-   * explains the two things that are otherwise invisible: what each keyboard
-   * shortcut does (the mouse/keyboard path has no other way to learn
-   * them) and what "iris" vs "head" cursor mode actually trades off, with
-   * whichever one is currently active highlighted so switching is legible
-   * rather than a guess.
-   */
-  private buildLegend(): HTMLElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'panel grid w-full max-w-md gap-4 p-4 text-xs sm:grid-cols-2';
-
-    const keys: Array<[string, string]> = [
-      ['D', 'Toggle face-tracking overlay'],
-      ['M', 'Switch cursor source'],
-      ['C', 'Recalibrate'],
-      ['S', 'Stop speaking'],
-    ];
-    const keyRows = keys
-      .map(
-        ([key, desc]) => `
-          <div class="flex items-center gap-2.5">
-            <span class="chip mono !py-0.5 !px-2 font-semibold text-slate-200">${key}</span>
-            <span class="text-slate-400">${desc}</span>
-          </div>`,
-      )
-      .join('');
-
-    wrap.innerHTML = `
-      <div class="space-y-2">
-        <div class="text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">
-          Keyboard
-        </div>
-        <div class="space-y-1.5">${keyRows}</div>
-      </div>
-      <div class="space-y-2">
-        <div class="text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">
-          Cursor modes
-        </div>
-        <div class="space-y-2">
-          <div data-mode-desc="iris" class="rounded-lg border border-transparent p-1.5 -m-1.5">
-            <div class="font-semibold text-slate-200">Iris <span class="text-slate-500 font-normal">(precise)</span></div>
-            <div class="text-slate-400">Iris position + head pose. Sharpest cursor; needs the
-              eyes clearly visible.</div>
-          </div>
-          <div data-mode-desc="head" class="rounded-lg border border-transparent p-1.5 -m-1.5">
-            <div class="font-semibold text-slate-200">Head <span class="text-slate-500 font-normal">(robust)</span></div>
-            <div class="text-slate-400">Head pose only, no iris. Coarser, but keeps working
-              behind glasses glare or bad lighting.</div>
-          </div>
-        </div>
-      </div>`;
-
-    this.modeDesc = {
-      iris: wrap.querySelector('[data-mode-desc="iris"]')!,
-      head: wrap.querySelector('[data-mode-desc="head"]')!,
-    };
-    return wrap;
-  }
-
-  /**
-   * hide recalibrate when there is no camera. a dwell target that fills, flashes
-   * green and then refuses is worse than one that is not offered.
-   */
-  setRecalibrateAvailable(v: boolean): void {
-    const tile = this.menuTiles.get('recalibrate')!;
-    const wanted = v ? '' : 'none';
-    if (tile.el.style.display === wanted) return;
-    tile.el.style.display = wanted;
-    tile.render('idle', 0);
-    if (this.menuOpen) this.notify();
-  }
-
-  /** reflect the app's current state in the toggle labels. */
-  setSystemState(s: SystemState): void {
-    this.menuTiles.get('cursor')!.setLabel(s.cursorMode === 'iris' ? 'Cursor: iris' : 'Cursor: head');
-    this.menuTiles.get('overlay')!.setLabel(s.overlayOn ? 'Overlay: on' : 'Overlay: off');
-
-    for (const mode of ['iris', 'head'] as const) {
-      const active = mode === s.cursorMode;
-      this.modeDesc[mode].classList.toggle('border-glow/50', active);
-      this.modeDesc[mode].classList.toggle('bg-glow/5', active);
-      this.modeDesc[mode].classList.toggle('opacity-60', !active);
-    }
-  }
-
-  openMenu(): void {
-    if (this.menuOpen) return;
-    this.menuOpen = true;
-    this.menuWrap.classList.remove('hidden');
-    this.menuWrap.classList.add('flex');
-    this.notify();
-  }
-
-  closeMenu(): void {
-    if (!this.menuOpen) return;
-    this.menuOpen = false;
-    for (const t of this.menuTiles.values()) t.render('idle', 0);
-    this.menuWrap.classList.add('hidden');
-    this.menuWrap.classList.remove('flex');
-    this.notify();
-  }
-
-  get isMenuOpen(): boolean {
-    return this.menuOpen;
   }
 
   /* ---------------------------------------------------------------- concepts */
 
   setConcepts(concepts: string[]): void {
     this.concepts = concepts;
-    this.syncUndoTile();
+    this.syncActionTiles();
     this.renderCentre();
   }
 
@@ -423,7 +227,7 @@ export class Board {
     if (this.view === id) return;
     this.view = id;
     this.mountRing();
-    this.syncUndoTile();
+    this.syncActionTiles();
     this.renderCentre();
     this.notify();
   }
@@ -433,17 +237,13 @@ export class Board {
     if (this.view === null) return;
     this.view = null;
     this.mountRing();
-    this.syncUndoTile();
+    this.syncActionTiles();
     this.renderCentre();
     this.notify();
   }
 
-  /**
-   * undo only exists while there is something to undo: a permanently visible
-   * dead target is one more thing to read on a board that already has ten.
-   * "back to categories" likewise only exists inside a category.
-   */
-  private syncUndoTile(): void {
+  /** "back to categories" only exists inside a category. */
+  private syncActionTiles(): void {
     let changed = false;
     const show = (key: string, v: boolean) => {
       const tile = this.actionTiles.get(key)!;
@@ -453,7 +253,6 @@ export class Board {
       tile.render('idle', 0);
       changed = true;
     };
-    show('undo', this.concepts.length > 0 && this.mode === 'concepts');
     show('categories', this.view !== null && this.mode === 'concepts');
     if (changed) this.notify();
   }
@@ -579,7 +378,7 @@ export class Board {
   /** show the "model is working" placeholder while generation runs. */
   showThinking(concepts: string[]): void {
     this.mode = 'candidates';
-    this.syncUndoTile();
+    this.syncActionTiles();
     this.setRingVisible(false);
     this.candidateWrap.classList.remove('hidden');
     this.candidateWrap.classList.add('flex');
@@ -593,24 +392,16 @@ export class Board {
             Composing sentences for "${concepts.join(', ')}"
           </span>
         </div>
-        <div data-stream class="mono min-h-10 text-xs leading-relaxed text-slate-500"></div>
       </div>`;
     this.actionTiles.get('back')!.el.style.display = '';
     this.actionTiles.get('speak')!.el.style.display = '';
     this.notify();
   }
 
-  /** live-stream the model's tokens into the thinking card. */
-  appendStream(text: string): void {
-    const el = this.candidateWrap.querySelector('[data-stream]');
-    if (!el) return;
-    el.textContent = (el.textContent + text).slice(-220);
-  }
-
   /** @param plainindex index of the "just the picked words" entry, if present. */
-  showCandidates(sentences: string[], source: 'model' | 'fallback', plainIndex = -1): void {
+  showCandidates(sentences: string[], plainIndex = -1): void {
     this.mode = 'candidates';
-    this.syncUndoTile();
+    this.syncActionTiles();
     this.setRingVisible(false);
     this.candidateWrap.classList.remove('hidden');
     this.candidateWrap.classList.add('flex');
@@ -618,12 +409,8 @@ export class Board {
     this.candidateTiles = [];
 
     const header = document.createElement('div');
-    header.className = 'mb-1 flex items-center gap-2 text-[11px] tracking-[0.2em] uppercase';
-    header.innerHTML =
-      `<span class="text-slate-500">say one of these</span>` +
-      `<span class="chip !py-0.5 ${
-        source === 'model' ? 'text-accent-300' : 'text-warn'
-      }">${source === 'model' ? 'on-device model' : 'template fallback'}</span>`;
+    header.className = 'mb-1 text-[11px] tracking-[0.2em] text-slate-500 uppercase';
+    header.textContent = 'say one of these';
     this.candidateWrap.appendChild(header);
 
     const stack = document.createElement('div');
@@ -649,7 +436,7 @@ export class Board {
   /** return to the word ring. */
   showConcepts(): void {
     this.mode = 'concepts';
-    this.syncUndoTile();
+    this.syncActionTiles();
     this.setRingVisible(true);
     this.candidateWrap.classList.add('hidden');
     this.candidateWrap.classList.remove('flex');
@@ -675,20 +462,11 @@ export class Board {
   /** the tiles the dwell controller should currently consider. */
   targets(): DwellTarget[] {
     const out: DwellTarget[] = [];
-    // the menu is modal: while it is up nothing behind it is selectable, or a
-    // gaze resting on the panel would snap through to a word tile underneath.
-    if (this.menuOpen) {
-      for (const [key, tile] of this.menuTiles) {
-        if (tile.el.style.display === 'none') continue;
-        out.push({ id: `sys:${key}`, el: tile.el, render: (s, p) => tile.render(s, p) });
-      }
-      return out;
-    }
     if (this.mode === 'concepts') {
       for (const [id, tile] of this.ringTiles()) {
         out.push({ id, el: tile.el, render: (s, p) => tile.render(s, p) });
       }
-      for (const key of ['undo', 'clear', 'categories', 'speak', 'settings'] as const) {
+      for (const key of ['clear', 'categories', 'speak'] as const) {
         const tile = this.actionTiles.get(key)!;
         if (tile.el.style.display === 'none') continue;
         out.push({ id: `action:${key}`, el: tile.el, render: (s, p) => tile.render(s, p) });
@@ -697,7 +475,7 @@ export class Board {
       this.candidateTiles.forEach((tile, i) => {
         out.push({ id: `cand:${i}`, el: tile.el, render: (s, p) => tile.render(s, p) });
       });
-      for (const key of ['back', 'speak', 'clear', 'settings'] as const) {
+      for (const key of ['back', 'speak', 'clear'] as const) {
         const tile = this.actionTiles.get(key)!;
         if (tile.el.style.display === 'none') continue;
         out.push({ id: `action:${key}`, el: tile.el, render: (s, p) => tile.render(s, p) });
@@ -711,7 +489,6 @@ export class Board {
     if (id.startsWith('word:')) this.wordTiles.get(id.slice(5))?.flash();
     else if (id.startsWith('cat:')) this.categoryTiles.get(id.slice(4) as CategoryId)?.flash();
     else if (id.startsWith('action:')) this.actionTiles.get(id.slice(7))?.flash();
-    else if (id.startsWith('sys:')) this.menuTiles.get(id.slice(4))?.flash();
     else if (id.startsWith('cand:')) this.candidateTiles[Number(id.slice(5))]?.flash();
   }
 }
