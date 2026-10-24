@@ -15,9 +15,9 @@ export class FaceTracker {
   private listeners = new Set<TrackerListener>();
   private running = false;
 
-  /** Which MediaPipe delegate actually got used, for the HUD. */
+  /** which mediapipe delegate actually got used, for the hud. */
   delegate: 'GPU' | 'CPU' = 'GPU';
-  /** Rolling FPS of the tracking loop. */
+  /** rolling fps of the tracking loop. */
   fps = 0;
   private frameTimes: number[] = [];
 
@@ -36,7 +36,7 @@ export class FaceTracker {
     return () => this.listeners.delete(fn);
   }
 
-  /** Open the camera. */
+  /** open the camera. */
   async startCamera(): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('This browser has no camera API. Try Chrome or Edge.');
@@ -60,8 +60,8 @@ export class FaceTracker {
     }
     this.video.srcObject = this.stream;
     await this.video.play();
-    // Wait for real dimensions - they are 0 for the first tick or two, and a
-    // zero-width frame makes MediaPipe throw.
+    // wait for real dimensions - they are 0 for the first tick or two, and a
+    // zero-width frame makes mediapipe throw.
     if (!this.video.videoWidth) {
       await new Promise<void>((resolve) => {
         this.video.addEventListener('loadeddata', () => resolve(), { once: true });
@@ -69,7 +69,7 @@ export class FaceTracker {
     }
   }
 
-  /** Create the landmarker. */
+  /** create the landmarker. */
   async initLandmarker(onStatus?: (s: string) => void): Promise<void> {
     onStatus?.('Loading vision runtime');
     const fileset = await FilesetResolver.forVisionTasks(CONFIG.vision.wasmPath);
@@ -79,9 +79,9 @@ export class FaceTracker {
         baseOptions: { modelAssetPath: CONFIG.vision.modelPath, delegate },
         runningMode: 'VIDEO',
         numFaces: 1,
-        // Needed for blink detection.
+        // needed for blink detection.
         outputFaceBlendshapes: true,
-        // Needed for head pose.
+        // needed for head pose.
         outputFacialTransformationMatrixes: true,
       });
 
@@ -116,8 +116,8 @@ export class FaceTracker {
   private tick(): void {
     const v = this.video;
     if (!this.landmarker || v.readyState < 2 || !v.videoWidth) return;
-    // Skip repeat calls on the same decoded frame: rAF can outrun a 30 fps
-    // camera, and MediaPipe rejects a non-monotonic timestamp.
+    // skip repeat calls on the same decoded frame: raf can outrun a 30 fps
+    // camera, and mediapipe rejects a non-monotonic timestamp.
     if (v.currentTime === this.lastVideoTime) return;
     this.lastVideoTime = v.currentTime;
 
@@ -130,7 +130,7 @@ export class FaceTracker {
       console.warn('[tracker] detect failed for this frame', err);
     }
 
-    // Rolling FPS over the last second.
+    // rolling fps over the last second.
     this.frameTimes.push(now);
     while (this.frameTimes.length && now - this.frameTimes[0]! > 1000) this.frameTimes.shift();
     this.fps = this.frameTimes.length;

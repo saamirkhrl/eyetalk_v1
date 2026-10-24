@@ -4,7 +4,7 @@ import type { FaceFrame, FaceMetrics, Point } from '../core/types.ts';
 import type { CursorMode } from '../core/config.ts';
 import { EYE_LEFT, EYE_RIGHT, NOSE_TIP } from './landmarks.ts';
 
-/** Decompose the 4x4 facial transformation matrix into yaw / pitch / roll. */
+/** decompose the 4x4 facial transformation matrix into yaw / pitch / roll. */
 export function matrixToEuler(data: Float32Array | number[]): {
   yaw: number;
   pitch: number;
@@ -61,7 +61,7 @@ function irisOffset(
   };
 }
 
-/** Distil a FaceLandmarker result into a FaceFrame. */
+/** distil a facelandmarker result into a faceframe. */
 export function toFaceFrame(
   result: FaceLandmarkerResult,
   videoW: number,
@@ -93,7 +93,7 @@ export function toFaceFrame(
   };
 }
 
-/** Build the regression feature vector. */
+/** build the regression feature vector. */
 export function featureVector(f: FaceMetrics, mode: CursorMode): number[] {
   if (mode === 'head') {
     return [f.yaw, f.pitch, f.nose.x, f.nose.y, f.scale];
@@ -109,12 +109,12 @@ export function featureVector(f: FaceMetrics, mode: CursorMode): number[] {
   ];
 }
 
-/** True while both eyes read as shut. */
+/** true while both eyes read as shut. */
 export function bothEyesClosed(f: FaceMetrics, threshold: number): boolean {
   return f.blinkLeft > threshold && f.blinkRight > threshold;
 }
 
-/** Strip the landmark array off a frame for long-term storage. */
+/** strip the landmark array off a frame for long-term storage. */
 export function toMetrics(f: FaceFrame): FaceMetrics {
   return {
     t: f.t,

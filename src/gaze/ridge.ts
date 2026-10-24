@@ -139,27 +139,27 @@ function meanErrorPx(
   return idx.length ? err / idx.length : 0;
 }
 
-/** Default log grid for the cross-validated penalty sweep. */
+/** default log grid for the cross-validated penalty sweep. */
 export const DEFAULT_LAMBDA_GRID = [
   1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1, 1, 3, 10,
 ] as const;
 
 export interface FitOptions {
-  /** Force a specific penalty and skip cross-validation (used by the tests). */
+  /** force a specific penalty and skip cross-validation (used by the tests). */
   lambda?: number;
-  /** Candidate penalties to sweep. */
+  /** candidate penalties to sweep. */
   lambdaGrid?: readonly number[];
   /**
-   * Skip the Huber reweighting pass and fit once, at each sample's base
-   * `weight` only. Used by the tests, which construct residual distributions
+   * skip the huber reweighting pass and fit once, at each sample's base
+   * `weight` only. used by the tests, which construct residual distributions
    * by hand and don't want a second, implicit pass changing them.
    */
   skipRobustPass?: boolean;
 }
 
 /**
- * One CV-lambda-sweep-plus-final-solve pass, given a fixed per-sample weight
- * vector. Shared between the plain fit and the Huber reweighting pass below,
+ * one cv-lambda-sweep-plus-final-solve pass, given a fixed per-sample weight
+ * vector. shared between the plain fit and the huber reweighting pass below,
  * which needs to run this twice with different weights.
  */
 function runFit(
@@ -225,24 +225,24 @@ function runFit(
 }
 
 /**
- * Fit the gaze model from calibration samples.
+ * fit the gaze model from calibration samples.
  *
- * Two passes. The first fits every sample at its base `weight` (1 for an
+ * two passes. the first fits every sample at its base `weight` (1 for an
  * explicit calibration-dot frame, lower for an implicit dwell-fire sample -
- * see `CalibrationSample.weight`). The second computes each sample's residual
- * against that fit, derives a Huber weight from it - full weight inside a
+ * see `calibrationsample.weight`). the second computes each sample's residual
+ * against that fit, derives a huber weight from it - full weight inside a
  * threshold set from the *median* residual (so it adapts to how noisy this
  * particular capture actually was, rather than a fixed pixel constant), and
- * smoothly discounted beyond it - and refits with `weight * huberWeight`.
+ * smoothly discounted beyond it - and refits with `weight * huberweight`.
  *
- * This is standard practice for eye-tracker calibration fitting (RANSAC- or
- * Huber-reweighted least squares is the published approach for exactly this
- * problem - see e.g. Blignaut & Wium 2013 and the MMransac line of work) and
+ * this is standard practice for eye-tracker calibration fitting (ransac- or
+ * huber-reweighted least squares is the published approach for exactly this
+ * problem - see e.g. blignaut & wium 2013 and the mmransac line of work) and
  * it is the fix for calibration silently absorbing a handful of garbage
  * frames - a hand passing in front of the camera, a lighting flicker, a
  * momentary bad landmark lock - and baking a permanent distortion into the
- * whole session from them. Those frames now still get *some* say (Huber does
- * not zero them out the way hard RANSAC rejection would), but not an equal
+ * whole session from them. those frames now still get *some* say (huber does
+ * not zero them out the way hard ransac rejection would), but not an equal
  * vote with the frames that were actually clean.
  */
 export function fitGazeModel(
@@ -285,7 +285,7 @@ export function fitGazeModel(
     const residuals = rows.map((row, i) => residual(row, samples[i]!.target, first.wx, first.wy));
     const sorted = [...residuals].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)]!;
-    // A perfect fit has a ~0 median and would divide by nothing; floor it at
+    // a perfect fit has a ~0 median and would divide by nothing; floor it at
     // 8px so a very clean capture doesn't get treated as all-outliers by a
     // threshold that rounds to zero.
     const threshold = Math.max(median, 8) * 2.5;
@@ -309,7 +309,7 @@ export function fitGazeModel(
   };
 }
 
-/** Apply a fitted model to a raw feature vector. */
+/** apply a fitted model to a raw feature vector. */
 export function predict(model: GazeModel, features: number[]): { x: number; y: number } {
   const spec = FEATURE_SPECS[model.mode];
   const row = designRow(standardise(features, model.mean, model.std, spec), spec);

@@ -1,13 +1,13 @@
 
 let host: HTMLDivElement | null = null;
 
-/** Older toasts are dropped past this so a burst doesn't stack up the screen. */
+/** older toasts are dropped past this so a burst doesn't stack up the screen. */
 const MAX_VISIBLE = 3;
 
 function ensureHost(): HTMLDivElement {
   if (host) return host;
   host = document.createElement('div');
-  // Several toasts are the only channel for state a gaze user has to act on
+  // several toasts are the only channel for state a gaze user has to act on
   // (calibration quality, a cancelled selection), so they have to be announced.
   host.setAttribute('role', 'status');
   host.setAttribute('aria-live', 'polite');

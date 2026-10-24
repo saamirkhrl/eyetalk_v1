@@ -12,13 +12,13 @@ function audio(): AudioContext | null {
 }
 
 interface ToneOptions {
-  /** Hz. */
+  /** hz. */
   freq: number;
-  /** Seconds. */
+  /** seconds. */
   duration: number;
-  /** Peak gain, 0-1. Kept low: this fires every few seconds during calibration. */
+  /** peak gain, 0-1. kept low: this fires every few seconds during calibration. */
   gain?: number;
-  /** Seconds to wait before the tone starts. */
+  /** seconds to wait before the tone starts. */
   delay?: number;
 }
 
@@ -42,12 +42,12 @@ function tone({ freq, duration, gain = 0.06, delay = 0 }: ToneOptions): void {
   osc.stop(t0 + duration + 0.02);
 }
 
-/** The calibration dot has arrived and is now still: look here. */
+/** the calibration dot has arrived and is now still: look here. */
 export function cueDotArrived(): void {
   tone({ freq: 880, duration: 0.14 });
 }
 
-/** All dots captured. */
+/** all dots captured. */
 export function cueCalibrationDone(): void {
   tone({ freq: 660, duration: 0.16 });
   tone({ freq: 990, duration: 0.28, delay: 0.13 });

@@ -11,9 +11,9 @@ const SYSTEM = [
 ].join('\n');
 
 /**
- * Extra instructions for the two kinds of word that change the sentence's
- * shape rather than its content. Deliberately not a per-word category tag:
- * given "water (need)", the 0.6B model writes "Water is a need." - it defines
+ * extra instructions for the two kinds of word that change the sentence's
+ * shape rather than its content. deliberately not a per-word category tag:
+ * given "water (need)", the 0.6b model writes "water is a need." - it defines
  * the tags instead of speaking for the person.
  */
 export function promptHints(concepts: string[]): string[] {
@@ -42,7 +42,7 @@ const BLOCKED = new Set(EXAMPLE_LINES.map(normalise));
 
 export interface PromptInput {
   concepts: string[];
-  /** Most recent spoken sentences, oldest first. */
+  /** most recent spoken sentences, oldest first. */
   history: string[];
   count: number;
 }
@@ -58,7 +58,7 @@ export function buildMessages({ concepts, history, count }: PromptInput): ChatMe
     EXAMPLE_LINES.map((l, i) => `${i + 1}. ${l}`).join('\n');
 
   const lines = [example, '', 'Now write the sentences for these words.'];
-  // Only the most recent turn is included: a 0.6B model given three lines of
+  // only the most recent turn is included: a 0.6b model given three lines of
   // history starts answering the history instead of the current selection.
   const last = history.at(-1);
   if (last) lines.push(`Earlier they said: "${last}"`);
@@ -76,7 +76,7 @@ function normalise(s: string): string {
   return s.toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-/** Pull clean sentences out of whatever the model produced. */
+/** pull clean sentences out of whatever the model produced. */
 export function parseCandidates(raw: string, count: number): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -94,7 +94,7 @@ export function parseCandidates(raw: string, count: number): string[] {
 
     if (line.length < 3 || line.length > 140) continue;
     if (/^(sure|here (are|is)|option|sentence|output|note|example)\b/i.test(line)) continue;
-    // A "sentence" with no space is a decode artefact, not language.
+    // a "sentence" with no space is a decode artefact, not language.
     if (!/\s/.test(line)) continue;
     if (isDegenerate(line)) continue;
 
@@ -107,11 +107,11 @@ export function parseCandidates(raw: string, count: number): string[] {
   return out;
 }
 
-/** Cheap detector for a broken decode. */
+/** cheap detector for a broken decode. */
 export function isDegenerate(text: string): boolean {
   const words = text.split(/\s+/).filter(Boolean);
   if (!words.length) return true;
-  // No English word is 24 characters. Run-together decodes always are.
+  // no english word is 24 characters. run-together decodes always are.
   if (words.some((w) => w.length > 24)) return true;
   if (words.length >= 4) {
     const counts = new Map<string, number>();
@@ -122,7 +122,7 @@ export function isDegenerate(text: string): boolean {
     const top = Math.max(...counts.values());
     if (top / words.length > 0.4) return true;
   }
-  // Mostly non-letters means we are looking at punctuation or token ids.
+  // mostly non-letters means we are looking at punctuation or token ids.
   const letters = (text.match(/[a-zA-Z]/g) ?? []).length;
   return letters / text.length < 0.55;
 }
@@ -133,11 +133,11 @@ function capitalise(s: string): string {
 }
 
 /**
- * Template data for every word on the board. `alone` is used verbatim when the
+ * template data for every word on the board. `alone` is used verbatim when the
  * word is the whole selection. `part` is the fragment the combiner below slots
  * into a sentence when it is one of several: a noun phrase for needs and
- * people, what follows "I am" for feelings, a bare verb for actions, and the
- * interjection itself for quick replies. Question words instead carry `ask`, a
+ * people, what follows "i am" for feelings, a bare verb for actions, and the
+ * interjection itself for quick replies. question words instead carry `ask`, a
  * frame per kind of word they can ask about.
  */
 interface WordTemplate {
@@ -236,9 +236,9 @@ function and(parts: string[]): string {
 }
 
 /**
- * One sentence that uses every picked word, built from each word's role rather
- * than its position: "where" + "mom" asks "Where is my mom?", "yes" + "water"
- * says "Yes, I need water." A question word takes the first need, person or
+ * one sentence that uses every picked word, built from each word's role rather
+ * than its position: "where" + "mom" asks "where is my mom?", "yes" + "water"
+ * says "yes, i need water." a question word takes the first need, person or
  * action (or failing those, feeling) as what it asks about; any other words get
  * a plain clause each; a quick reply leads the whole thing.
  */
@@ -263,7 +263,7 @@ function combine(words: Array<{ id: string; category: CategoryId }>): string {
     else asked.push(t.alone[0]);
   }
 
-  // Remaining words get one clause per category, in the order the user first
+  // remaining words get one clause per category, in the order the user first
   // picked from each, so "water" then "cold" says the water part first.
   const clause: Partial<Record<CategoryId, string>> = {
     questions: asked.join(' ') || undefined,
@@ -285,7 +285,7 @@ function combine(words: Array<{ id: string; category: CategoryId }>): string {
   return text;
 }
 
-/** Deterministic sentences built from templates. */
+/** deterministic sentences built from templates. */
 export function fallbackSentences(concepts: string[], count = 3): string[] {
   if (!concepts.length) return [];
 
@@ -295,11 +295,11 @@ export function fallbackSentences(concepts: string[], count = 3): string[] {
   if (words.every((w) => w && TEMPLATES[w.id])) {
     const known = words as Array<NonNullable<(typeof words)[number]>>;
     if (known.length === 1) {
-      // A single word with a canned phrasing: use it verbatim, it reads better
+      // a single word with a canned phrasing: use it verbatim, it reads better
       // than anything a template can assemble.
       out.push(...TEMPLATES[known[0]!.id]!.alone);
     } else {
-      // Several words: one sentence that weaves them together, then each
+      // several words: one sentence that weaves them together, then each
       // word's own phrasing in pick order - always grammatical, if longer.
       out.push(combine(known));
       for (const i of [0, 1, 2] as const) {
@@ -317,8 +317,8 @@ export function fallbackSentences(concepts: string[], count = 3): string[] {
       return true;
     });
 
-  // The same filter the model's output goes through: a join like "Please stop.
-  // Yes, please." repeats itself enough to read as broken, so it is dropped.
+  // the same filter the model's output goes through: a join like "please stop.
+  // yes, please." repeats itself enough to read as broken, so it is dropped.
   const result = unique(out.filter((s) => !isDegenerate(s)));
   if (result.length < count) {
     const joined = concepts.join(' ');

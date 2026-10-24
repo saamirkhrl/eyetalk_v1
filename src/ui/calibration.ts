@@ -14,17 +14,17 @@ const EDGE_MIDPOINTS: ReadonlyArray<[number, number]> = [
 
 interface CalibDot {
   at: Point;
-  /** Sway dots ask for head movement instead of stillness. */
+  /** sway dots ask for head movement instead of stillness. */
   sway: boolean;
-  /** Full sway dots sweep rotation + translation; corner dots are rotation-only. */
+  /** full sway dots sweep rotation + translation; corner dots are rotation-only. */
   swayFull: boolean;
 }
 
 export interface CalibrationResult {
   samples: RawCalibrationSample[];
-  /** Points where we captured too few frames - usually a lost face. */
+  /** points where we captured too few frames - usually a lost face. */
   weakPoints: number[];
-  /** Spread of head pose across the whole capture, in radians (yaw, pitch). */
+  /** spread of head pose across the whole capture, in radians (yaw, pitch). */
   headSpread: { yaw: number; pitch: number };
 }
 
@@ -117,7 +117,7 @@ export class CalibrationScreen {
     this.bubble = this.root.querySelector('[data-bubble]')!;
   }
 
-  /** Slot for the landmark overlay, so the user can confirm tracking. */
+  /** slot for the landmark overlay, so the user can confirm tracking. */
   mountOverlay(el: HTMLElement): void {
     this.overlaySlot.appendChild(el);
   }
@@ -146,7 +146,7 @@ export class CalibrationScreen {
     }
   }
 
-  /** Run the whole sequence. */
+  /** run the whole sequence. */
   start(): Promise<CalibrationResult> {
     this.buildPoints();
     this.index = 0;
@@ -190,7 +190,7 @@ export class CalibrationScreen {
       : 'none';
     this.dot.style.left = `${p.x}px`;
     this.dot.style.top = `${p.y}px`;
-    // Below by default; flip above for a dot low enough on screen that a
+    // below by default; flip above for a dot low enough on screen that a
     // below-anchored bubble would run past the bottom edge.
     this.bubble.dataset.pos = p.y > window.innerHeight * 0.62 ? 'above' : 'below';
 
@@ -214,7 +214,7 @@ export class CalibrationScreen {
   private onDotArrived(): void {
     if (this.phase === 'done' || this.cancelled) return;
     this.dot.style.animation = 'none';
-    // Reflow, or re-setting the same animation on an element that already ran
+    // reflow, or re-setting the same animation on an element that already ran
     // it is a no-op and the pop never plays again.
     void this.dot.offsetWidth;
     this.dot.style.animation = 'pop 0.3s cubic-bezier(0.34,1.56,0.64,1)';
@@ -228,7 +228,7 @@ export class CalibrationScreen {
 
   /* --------------------------------------------------------- head spread ---- */
   /*
-   * Running min/max of yaw and pitch across everything recorded. Cheap, and it
+   * running min/max of yaw and pitch across everything recorded. cheap, and it
    * is the only way to distinguish "the sway pass worked" from "the user sat
    * perfectly still through it" - which produce indistinguishable fitted models
    * but very different cursors, and only one of them is the user's fault.
@@ -255,7 +255,7 @@ export class CalibrationScreen {
     fill.style.transform = `scale(${v})`;
   }
 
-  /** Show or hide the bubble anchored to the dot. `null` hides it. */
+  /** show or hide the bubble anchored to the dot. `null` hides it. */
   private setBubble(text: string | null): void {
     if (text === null) {
       this.bubble.style.opacity = '0';
@@ -281,7 +281,7 @@ export class CalibrationScreen {
     this.closedSince ??= t;
     const held = t - this.closedSince;
     const frac = Math.min(held / CONFIG.blink.calibrationCancelHoldMs, 1);
-    // Only surface the bar once the closure is longer than a normal blink.
+    // only surface the bar once the closure is longer than a normal blink.
     this.cancelTrack.style.opacity = held > CONFIG.blink.cancelHoldMs ? '1' : '0';
     this.cancelBar.style.width = `${frac * 100}%`;
 
@@ -292,7 +292,7 @@ export class CalibrationScreen {
     return false;
   }
 
-  /** Called from the main tracking loop for every frame. */
+  /** called from the main tracking loop for every frame. */
   onFrame(frame: FaceFrame | null, t: number): boolean {
     if (this.phase === 'done' || this.cancelled) return false;
     if (this.checkEyesClosedCancel(frame, t)) return false;
@@ -313,9 +313,9 @@ export class CalibrationScreen {
     if (this.phase === 'settle') {
       const travelMs = this.index === 0 ? 0 : CONFIG.gaze.dotTravelMs;
       const settling = elapsed < travelMs;
-      // One instruction per dot type, said the same way everywhere it's said:
+      // one instruction per dot type, said the same way everywhere it's said:
       // the top panel, the bubble on the dot, the whole way through settle and
-      // capture. Simpler than the old per-segment prompts, and it means the
+      // capture. simpler than the old per-segment prompts, and it means the
       // one thing the user actually needs to know - eyes only, or eyes and
       // head - never changes mid-dot.
       this.hint.textContent = settling
@@ -323,10 +323,10 @@ export class CalibrationScreen {
         : dot.sway
           ? 'Follow with your EYES and HEAD.'
           : 'Follow with your EYES only.';
-      // The bubble stays quiet until the dot has actually landed - showing an
+      // the bubble stays quiet until the dot has actually landed - showing an
       // instruction while it is still travelling reads as meant for the wrong dot.
       this.setBubble(settling ? null : dot.sway ? 'Eyes + head' : 'Eyes only');
-      // Never start recording while the dot is still travelling, even if a
+      // never start recording while the dot is still travelling, even if a
       // config edit ever made the travel longer than the settle window.
       if (elapsed >= Math.max(CONFIG.gaze.dotSettleMs, travelMs)) {
         this.phase = 'capture';
@@ -343,7 +343,7 @@ export class CalibrationScreen {
     const frac = Math.min(elapsed / captureMs, 1);
     this.setFill(frac);
 
-    // Skip frames where the face was lost or the user happens to be blinking:
+    // skip frames where the face was lost or the user happens to be blinking:
     // both produce iris features that have nothing to do with where they look.
     const usable =
       frame &&
@@ -357,7 +357,7 @@ export class CalibrationScreen {
     }
 
     if (frac >= 1 || this.captured >= wanted) {
-      // Fewer than a third of the expected frames means this dot is unreliable.
+      // fewer than a third of the expected frames means this dot is unreliable.
       if (this.captured < wanted / 3) this.weakPoints.push(this.index);
 
       this.index++;

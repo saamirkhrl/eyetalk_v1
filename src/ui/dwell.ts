@@ -7,7 +7,7 @@ export type DwellState = 'idle' | 'hover' | 'arming' | 'committing' | 'cooldown'
 export interface DwellTarget {
   id: string;
   el: HTMLElement;
-  /** Called every frame this target's visual state changes. */
+  /** called every frame this target's visual state changes. */
   render: (state: DwellState | 'idle', progress: number) => void;
 }
 
@@ -28,22 +28,22 @@ export class DwellController {
   private openedAt = 0;
 
   /**
-   * Lock-on state, tracked only while `activeId` is set. `departureKey` is
+   * lock-on state, tracked only while `activeid` is set. `departurekey` is
    * the id of whatever the raw hit test has been landing on instead of the
    * locked target - `null` specifically means "landing on nothing" - and is
    * `undefined` when there is no departure in progress (the gaze is still
-   * reading as the locked target). See CONFIG.dwell.lockBreakMs.
+   * reading as the locked target). see config.dwell.lockbreakms.
    */
   private departureKey: string | null | undefined = undefined;
   private departureSince = 0;
 
-  /** Last cursor position seen by `update()`. */
+  /** last cursor position seen by `update()`. */
   private lastPoint: Point | null = null;
-  /** Set by `requireExit()`; consumed by the next `setTargets()`. */
+  /** set by `requireexit()`; consumed by the next `settargets()`. */
   private exitPending = false;
   /**
-   * A target that may not engage until the hit test has stopped landing on it
-   * once. See `requireExit()`.
+   * a target that may not engage until the hit test has stopped landing on it
+   * once. see `requireexit()`.
    */
   private exitRequiredId: string | null = null;
 
@@ -51,7 +51,7 @@ export class DwellController {
   private cancelHandlers = new Set<() => void>();
   private stateHandlers = new Set<(s: DwellState, id: string | null, p: number) => void>();
 
-  /** Whether the machine is accepting input at all. */
+  /** whether the machine is accepting input at all. */
   enabled = true;
 
   /** `rect` is the fired target's cached on-screen box at the moment it fired. */
@@ -70,11 +70,11 @@ export class DwellController {
     return () => this.stateHandlers.delete(fn);
   }
 
-  /** Register the tiles currently on screen. */
+  /** register the tiles currently on screen. */
   setTargets(targets: DwellTarget[]): void {
     this.reset();
     this.targets = targets.map((t) => ({ ...t, rect: t.el.getBoundingClientRect() }));
-    // One swap can register targets more than once (the ring, then an action
+    // one swap can register targets more than once (the ring, then an action
     // tile appearing), so a guard set by the first call survives later ones
     // for as long as its tile is still on screen.
     if (!this.targets.some((t) => t.id === this.exitRequiredId)) this.exitRequiredId = null;
@@ -87,10 +87,10 @@ export class DwellController {
   }
 
   /**
-   * Call just before swapping the ring to a different set of tiles (opening a
-   * category, going back to the category ring). Whatever new tile lands under
-   * the cursor will not engage until the cursor has left it once. Without this
-   * the gaze that just opened "Needs" is already resting on whichever word took
+   * call just before swapping the ring to a different set of tiles (opening a
+   * category, going back to the category ring). whatever new tile lands under
+   * the cursor will not engage until the cursor has left it once. without this
+   * the gaze that just opened "needs" is already resting on whichever word took
    * that slot, and keeps reading it for the 1.2 s it takes to fire.
    */
   requireExit(): void {
@@ -101,7 +101,7 @@ export class DwellController {
     for (const t of this.targets) t.rect = t.el.getBoundingClientRect();
   }
 
-  /** Wipe all progress without emitting a cancel event. */
+  /** wipe all progress without emitting a cancel event. */
   reset(): void {
     for (const t of this.targets) t.render('idle', 0);
     this.activeId = null;
@@ -112,11 +112,11 @@ export class DwellController {
   }
 
   /**
-   * While a target is locked (`activeId` set), don't let a single frame's hit
+   * while a target is locked (`activeid` set), don't let a single frame's hit
    * test - which might be a different target, or nothing - take effect until
-   * it has been consistent for `lockBreakMs`. Until then this substitutes the
+   * it has been consistent for `lockbreakms`. until then this substitutes the
    * still-locked target back in, so the rest of `update()` behaves exactly as
-   * if the gaze never left. See CONFIG.dwell.lockBreakMs for why.
+   * if the gaze never left. see config.dwell.lockbreakms for why.
    */
   private applyLockOn(hit: CachedTarget | null, t: number): CachedTarget | null {
     if (this.activeId === null) return hit;
@@ -132,10 +132,10 @@ export class DwellController {
       this.departureSince = t;
     }
     if (t - this.departureSince < CONFIG.dwell.lockBreakMs) {
-      // Not held long enough to count as genuine - keep the lock.
+      // not held long enough to count as genuine - keep the lock.
       return this.targets.find((x) => x.id === this.activeId) ?? null;
     }
-    // Held the full window: this is a real departure. Let it through, and
+    // held the full window: this is a real departure. let it through, and
     // clear the tracker so a future re-lock starts a fresh confirmation.
     this.departureKey = undefined;
     return hit;
@@ -172,7 +172,7 @@ export class DwellController {
     return null;
   }
 
-  /** Advance the machine one frame. */
+  /** advance the machine one frame. */
   update(point: Point | null, eyesClosed: boolean, t: number): void {
     if (!this.enabled) return;
 

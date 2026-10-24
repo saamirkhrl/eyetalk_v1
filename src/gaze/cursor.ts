@@ -34,7 +34,7 @@ export class GazeCursor {
     this.el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
   }
 
-  /** Tint the cursor while a dwell is charging, so the state is legible. */
+  /** tint the cursor while a dwell is charging, so the state is legible. */
   setState(state: 'idle' | 'hover' | 'committing' | 'cancelled'): void {
     const map = {
       idle: ['bg-accent-400', 'scale-100'],
@@ -49,7 +49,7 @@ export class GazeCursor {
     this.ring.style.transform = state === 'committing' ? 'scale(1.35)' : 'scale(1)';
   }
 
-  /** Hide during calibration, where the dot would be a distraction. */
+  /** hide during calibration, where the dot would be a distraction. */
   destroy(): void {
     this.el.remove();
   }

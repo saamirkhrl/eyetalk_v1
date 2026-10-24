@@ -8,7 +8,7 @@ export interface TileOptions {
   label: string;
   sublabel?: string;
   variant?: TileVariant;
-  /** Also fire on a real click, so the app is testable without a camera. */
+  /** also fire on a real click, so the app is testable without a camera. */
   onClick?: (id: string) => void;
 }
 
@@ -101,7 +101,7 @@ export class Tile {
     return this.el.querySelector('[data-bar]');
   }
 
-  /** Called by the dwell controller each frame. */
+  /** called by the dwell controller each frame. */
   render(state: DwellState | 'idle', progress: number): void {
     if (state !== this.lastState) {
       this.lastState = state;
@@ -121,10 +121,10 @@ export class Tile {
     }
   }
 
-  /** One-shot "this fired" flash. */
+  /** one-shot "this fired" flash. */
   flash(): void {
     this.el.classList.remove('tile-fired');
-    // Force a reflow so the animation restarts even on a rapid re-fire.
+    // force a reflow so the anim restarts on a quick re-fire too.
     void this.el.offsetWidth;
     this.el.classList.add('tile-fired');
   }

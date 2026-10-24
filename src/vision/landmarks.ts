@@ -1,4 +1,4 @@
-/** Landmark indices into MediaPipe's 478-point canonical face mesh. */
+/** landmark indices into mediapipe's 478-point canonical face mesh. */
 export const EYE_LEFT = {
   outer: 33,
   inner: 133,
@@ -17,6 +17,6 @@ export const EYE_RIGHT = {
 
 export const NOSE_TIP = 1;
 
-/** Iris ring points, used to draw the iris circles in the debug overlay. */
+/** iris ring points, used to draw the iris circles in the debug overlay. */
 export const IRIS_LEFT_RING = [469, 470, 471, 472] as const;
 export const IRIS_RIGHT_RING = [474, 475, 476, 477] as const;

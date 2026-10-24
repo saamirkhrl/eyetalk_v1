@@ -20,10 +20,10 @@ const KEYS: Array<[string, string]> = [
 ];
 
 /**
- * Always visible on the board - the keys and the cursor-mode explanation used
- * to live only inside the Settings menu, which meant reading them required
- * navigating away from the thing they explain. Read-only either way: every
- * *control* still lives in Settings as a dwell tile, which is the route the
+ * always visible on the board - the keys and the cursor-mode explanation used
+ * to live only inside the settings menu, which meant reading them required
+ * navigating away from the thing they explain. read-only either way: every
+ * *control* still lives in settings as a dwell tile, which is the route the
  * user this product is for actually has.
  */
 export class Hud {

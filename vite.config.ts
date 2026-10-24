@@ -3,8 +3,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [tailwindcss()],
-  // transformers.js / onnxruntime-web ship ESM + WASM that Vite's dep pre-bundler
-  // mangles. Excluding them keeps the dynamic wasm/webgpu loaders intact.
+  // transformers.js / onnxruntime-web ship esm + wasm that vite's dep pre-bundler
+  // mangles. excluding them keeps the dynamic wasm/webgpu loaders intact.
   optimizeDeps: {
     exclude: ['@huggingface/transformers', 'onnxruntime-web'],
   },
@@ -12,13 +12,13 @@ export default defineConfig({
     format: 'es',
   },
   build: {
-    // onnxruntime-web needs top-level await + BigInt.
+    // onnxruntime-web needs top-level await + bigint.
     target: 'esnext',
     chunkSizeWarningLimit: 4096,
   },
   server: {
-    // getUserMedia requires a secure context: localhost counts, so plain http is fine
-    // for local dev. For LAN testing use `npm run dev -- --host` over a tunnel.
+    // getusermedia requires a secure context: localhost counts, so plain http is fine
+    // for local dev. for lan testing use `npm run dev -- --host` over a tunnel.
     port: 5173,
   },
 });

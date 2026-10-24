@@ -30,17 +30,17 @@ export class HistoryPanel {
     if (!this.turns.length) this.list.innerHTML = '';
     this.turns.push(turn);
 
-    const item = document.createElement('div');
-    item.className = 'animate-fade-up rounded-lg border border-ink-700 bg-ink-850/70 p-2.5';
+    const entry = document.createElement('div');
+    entry.className = 'animate-fade-up rounded-lg border border-ink-700 bg-ink-850/70 p-2.5';
     const concepts = turn.concepts.length
       ? `<div class="mt-1 text-[11px] tracking-wide text-slate-500">
            ${turn.concepts.join(' + ')}
          </div>`
       : '';
-    item.innerHTML = `<div class="text-sm leading-snug text-slate-200">${escapeHtml(
+    entry.innerHTML = `<div class="text-sm leading-snug text-slate-200">${escapeHtml(
       turn.text,
     )}</div>${concepts}`;
-    this.list.appendChild(item);
+    this.list.appendChild(entry);
     this.list.scrollTop = this.list.scrollHeight;
   }
 
@@ -49,7 +49,7 @@ export class HistoryPanel {
     this.renderEmpty();
   }
 
-  /** Recent sentences, oldest first, for the prompt. */
+  /** recent sentances, oldest first, for the prompt. */
   recent(n: number): string[] {
     return this.turns.slice(-n).map((t) => t.text);
   }

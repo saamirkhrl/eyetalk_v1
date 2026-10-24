@@ -1,52 +1,52 @@
 
 import type { CursorMode } from '../core/config.ts';
 
-/** Standardised features are clipped here before the polynomial expansion. */
+/** standardised features are clipped here before the polynomial expansion. */
 export const Z_CLAMP = 2.5;
 /**
- * Wider clamp for head-compensation dimensions (yaw/pitch/nose/scale). The
+ * wider clamp for head-compensation dimensions (yaw/pitch/nose/scale). the
  * sway pass exists specifically to give these terms real evidence across a
  * big range of head poses - clamping them as tightly as the gaze axes throws
  * that evidence away and saturates the correction exactly where the user is
- * most likely to have moved to. See `ui/calibration.ts`.
+ * most likely to have moved to. see `ui/calibration.ts`.
  */
 export const COMPENSATOR_Z_CLAMP = 3.5;
 
 export interface FeatureSpec {
-  /** Human names, index-aligned with `featureVector`. */
+  /** human names, index-aligned with `featurevector`. */
   readonly names: readonly string[];
   readonly floors: readonly number[];
-  /** The two feature indices that actually aim the cursor (horizontal, vertical). */
+  /** the two feature indices that actually aim the cursor (horizontal, vertical). */
   readonly axes: readonly [number, number];
-  /** Head-pose indices used as multiplicative compensation on the axes. */
+  /** head-pose indices used as multiplicative compensation on the axes. */
   readonly compensators: readonly number[];
 }
 
 export const FEATURE_SPECS: Readonly<Record<CursorMode, FeatureSpec>> = {
   /**
-   * Iris mode.
+   * iris mode.
    *
-   * The two eyes are combined into a mean rather than passed through
+   * the two eyes are combined into a mean rather than passed through
    * separately: both irises report the same gaze direction with independent
    * tracker noise, so the mean has ~1.4x the signal-to-noise of either alone.
    *
-   * Everything after the two axes exists to answer one question: *where is the
-   * head?* An iris offset only determines a gaze direction; turning it into a
-   * screen point needs to know where the eye is relative to the screen. So the
+   * everything after the two axes exists to answer one question: *where is the
+   * head?* an iris offset only determines a gaze direction; turning it into a
+   * screen point needs to know where the eye is relative to the screen. so the
    * model gets head rotation (yaw, pitch), head translation across the frame
    * (nose.x, nose.y) and head distance (scale, the apparent width between the
-   * eye corners). Without the translation and scale terms, sliding the laptop
+   * eye corners). without the translation and scale terms, sliding the laptop
    * or leaning a few centimetres invalidates the whole fit - which is exactly
    * what "it works right after calibration and then stops" means.
    *
    * `roll` is gone: the iris offset is projected onto the eye's own axes in
    * `vision/features.ts`, so it is already roll-invariant and a roll column
-   * would contribute nothing but noise. Vergence is gone for the same kind of
+   * would contribute nothing but noise. vergence is gone for the same kind of
    * reason - `scale` is a much better distance cue.
    *
-   * Floors: a full-screen look moves the iris about +-0.06 eye-widths, so
+   * floors: a full-screen look moves the iris about +-0.06 eye-widths, so
    * 0.012 is a fifth of the usable range - below that, nothing real happened.
-   * Pitch gets a lower floor than yaw (0.05 vs 0.10 rad) because vertical head
+   * pitch gets a lower floor than yaw (0.05 vs 0.10 rad) because vertical head
    * movement genuinely has a smaller range than horizontal: people turn
    * side-to-side far more than they nod, and crushing pitch to the yaw floor
    * is what leaves the vertical axis dead.
@@ -59,12 +59,12 @@ export const FEATURE_SPECS: Readonly<Record<CursorMode, FeatureSpec>> = {
   },
 
   /**
-   * Head mode. Here yaw/pitch *are* the aiming axes. Translation (nose) and
+   * head mode. here yaw/pitch *are* the aiming axes. translation (nose) and
    * distance (scale) are the compensators, because leaning sideways moves
    * where you are pointing without changing how far you have rotated.
    *
-   * Head mode is only as good as the head movement present in the calibration
-   * capture. See `ui/calibration.ts` - the instruction there deliberately asks
+   * head mode is only as good as the head movement present in the calibration
+   * capture. see `ui/calibration.ts` - the instruction there deliberately asks
    * the user to let their head follow the dot, and there is a sway pass, or
    * this mode has nothing to learn from.
    */
@@ -76,12 +76,12 @@ export const FEATURE_SPECS: Readonly<Record<CursorMode, FeatureSpec>> = {
   },
 };
 
-/** Number of columns in the design row for a spec. */
+/** number of columns in the design row for a spec. */
 export function designWidth(spec: FeatureSpec): number {
   return 1 + spec.floors.length + 3 + 2 * spec.compensators.length;
 }
 
-/** Expand a standardised feature vector into the design row described above. */
+/** expand a standardised feature vector into the design row described above. */
 export function designRow(z: readonly number[], spec: FeatureSpec): number[] {
   const d = z.length;
   const [a0, a1] = spec.axes;
@@ -104,7 +104,7 @@ export function designRow(z: readonly number[], spec: FeatureSpec): number[] {
   return row;
 }
 
-/** Per-column ridge penalty multipliers. */
+/** per-column ridge penalty multipliers. */
 export function penaltyWeights(spec: FeatureSpec): number[] {
   const w = new Array<number>(designWidth(spec)).fill(1);
   const [a0, a1] = spec.axes;
@@ -128,11 +128,11 @@ export function penaltyWeights(spec: FeatureSpec): number[] {
 }
 
 /**
- * Centre, scale by the floored standard deviation, and clamp.
+ * centre, scale by the floored standard deviation, and clamp.
  *
  * `spec` is required so the clamp can be per-feature: gaze axes and curvature
- * stay at the tight `Z_CLAMP` (there is no evidence base to trust them further
- * out), while compensator dimensions get `COMPENSATOR_Z_CLAMP` (there is - the
+ * stay at the tight `z_clamp` (there is no evidence base to trust them further
+ * out), while compensator dimensions get `compensator_z_clamp` (there is - the
  * sway pass was recorded for exactly this purpose).
  */
 export function standardise(

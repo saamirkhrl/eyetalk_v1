@@ -37,24 +37,24 @@ async function hasWebGPU(): Promise<boolean> {
 }
 
 /**
- * Whether the browser's Cache Storage has room to actually keep `neededBytes`
+ * whether the browser's cache storage has room to actually keep `neededbytes`
  * cached, rather than silently evicting it (or failing to write it at all)
  * and forcing a redownload on every visit.
  *
- * This is the fix for "the 1.4 GB model isn't being cached, it downloads
- * every time". `@huggingface/transformers` caches correctly by default (Cache
- * Storage API, keyed on a stable `repo/filename` string - verified by reading
- * its source, not assumed), so that was never the bug. The real constraint is
- * quota: Safari caps Cache Storage at roughly 1 GB per origin, well under the
- * WebGPU model's 1.43 GB, so on Safari the download can never fully land in
+ * this is the fix for "the 1.4 gb model isn't being cached, it downloads
+ * every time". `@huggingface/transformers` caches correctly by default (cache
+ * storage api, keyed on a stable `repo/filename` string - verified by reading
+ * its source, not assumed), so that was never the bug. the real constraint is
+ * quota: safari caps cache storage at roughly 1 gb per origin, well under the
+ * webgpu model's 1.43 gb, so on safari the download can never fully land in
  * the cache and repeats forever. `navigator.storage.estimate()` reports the
  * *actual* quota for this browser and origin, so this checks the real number
  * rather than assuming which browser is in use.
  *
  * `navigator.storage.persist()` is requested alongside it: on browsers that
- * honour it (Chrome, Firefox), a persisted origin's storage is exempt from
+ * honour it (chrome, firefox), a persisted origin's storage is exempt from
  * the "evict under disk pressure" cleanup that non-persisted origins are
- * subject to, which is the other realistic way a multi-hundred-MB cache
+ * subject to, which is the other realistic way a multi-hundred-mb cache
  * quietly disappears between visits.
  */
 async function hasStorageRoomFor(neededBytes: number): Promise<boolean> {
@@ -62,12 +62,12 @@ async function hasStorageRoomFor(neededBytes: number): Promise<boolean> {
   try {
     await navigator.storage.persist?.();
   } catch {
-    // Not fatal either way - persistence is a hint, not a requirement.
+    // not fatal either way - persistence is a hint, not a requirement.
   }
   try {
     const { quota, usage } = await navigator.storage.estimate();
     if (quota == null) return true;
-    // 15% margin: the face-tracking model, MediaPipe WASM, and the app bundle
+    // 15% margin: the face-tracking model, mediapipe wasm, and the app bundle
     // itself also live in this origin's storage budget.
     return quota - (usage ?? 0) > neededBytes * 1.15;
   } catch {
@@ -79,22 +79,22 @@ interface Download {
   device: Backend;
   modelId: string;
   dtype: 'q4f16' | 'q4';
-  /** True when this is the small model standing in for the big one because
-   *  the big one would not reliably stay cached - see `hasStorageRoomFor`. */
+  /** true when this is the small model standing in for the big one because
+   *  the big one would not reliably stay cached - see `hasstorageroomfor`. */
   downsized: boolean;
 }
 
 /**
- * When storage is too tight for the big WebGPU model, fall back to the
+ * when storage is too tight for the big webgpu model, fall back to the
  * device+model+dtype combination that already has to work regardless (the
- * no-WebGPU path), rather than a combination nothing has ever exercised.
+ * no-webgpu path), rather than a combination nothing has ever exercised.
  *
- * The tempting version of this - keep `device: 'webgpu'`, just swap in the
+ * the tempting version of this - keep `device: 'webgpu'`, just swap in the
  * small model's `q4` dtype for speed - was shipped once and reverted. `q4`
- * (non-fp16) is not verified to have WebGPU execution-provider kernels for
+ * (non-fp16) is not verified to have webgpu execution-provider kernels for
  * every op this model uses; `q4f16` is the only dtype this codebase has ever
- * actually run on WebGPU. Getting a user their sentences a little slower on
- * CPU is a far smaller cost than the model failing to load at all, which is
+ * actually run on webgpu. getting a user their sentences a little slower on
+ * cpu is a far smaller cost than the model failing to load at all, which is
  * what an unverified device/dtype pairing risks.
  */
 async function pickDownload(b: Backend): Promise<Download> {
@@ -170,20 +170,20 @@ async function selfCheck(): Promise<boolean> {
 }
 
 /**
- * One attempt: pick a download, build the pipeline, run the coherence
- * self-check. Deliberately does not retry a different device/model in-process
- * on failure - a failed `pipeline()` call can leave this worker's WASM linear
+ * one attempt: pick a download, build the pipeline, run the coherence
+ * self-check. deliberately does not retry a different device/model in-process
+ * on failure - a failed `pipeline()` call can leave this worker's wasm linear
  * memory holding partial allocations from the attempt that just failed, and
  * loading a second, still-substantial model on top of that measurably raises
  * the odds the retry fails too, for the same reason the first one did rather
- * than despite it. `std::bad_alloc` while creating an ONNX Runtime session
- * for *both* the WebGPU and the in-worker WASM retry, on the same load, is
+ * than despite it. `std::bad_alloc` while creating an onnx runtime session
+ * for *both* the webgpu and the in-worker wasm retry, on the same load, is
  * exactly the failure this shape invites.
  *
- * The fix lives in `llm.ts`: on a load failure it terminates the worker
+ * the fix lives in `llm.ts`: on a load failure it terminates the worker
  * outright and starts a fresh one for the retry, guaranteeing the retry gets
- * a clean memory space rather than a used one. `forceDevice` here is what
- * that fresh worker is told to use, skipping `hasWebGPU()` re-detection.
+ * a clean memory space rather than a used one. `forcedevice` here is what
+ * that fresh worker is told to use, skipping `haswebgpu()` re-detection.
  */
 async function load(forceDevice?: Backend): Promise<void> {
   if (loading) return loading;

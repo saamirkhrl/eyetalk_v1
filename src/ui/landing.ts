@@ -4,9 +4,9 @@ import { CONFIG } from '../core/config.ts';
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 
 /**
- * A handheld phone cannot run this: gaze calibration assumes the screen holds
+ * a handheld phone cannot run this: gaze calibration assumes the screen holds
  * still relative to the head, and a phone moves with the person holding it.
- * Small screen plus touch input is the closest available proxy - a tablet is
+ * small screen plus touch input is the closest available proxy - a tablet is
  * coarse-pointered too, but wide enough to be usable on a stand.
  */
 const TOO_SMALL = matchMedia('(max-width: 700px) and (pointer: coarse)');
@@ -146,10 +146,10 @@ function stepCard(n: string, title: string, body: string, demo: string): string 
 }
 
 /**
- * Eighteen dots on a full 6x3 field - the real count, with no gaps in the grid.
- * Visit order wanders so consecutive dots stay far apart, which is what the
+ * eighteen dots on a full 6x3 field - the real count, with no gaps in the grid.
+ * visit order wanders so consecutive dots stay far apart, which is what the
  * real pass does: adjacent dots invite the user to drift instead of saccade.
- * The last five are the sway pass, where the instruction inverts.
+ * the last five are the sway pass, where the instruction inverts.
  */
 const DOT_ORDER: ReadonlyArray<readonly [number, number]> = [
   [0, 0], [2, 3], [0, 5], [2, 0], [1, 2], [0, 2], [2, 5],
@@ -190,9 +190,9 @@ function demoSay(): string {
 }
 
 /**
- * The hero field: an even grid of dots with a replica of the gaze cursor
+ * the hero field: an even grid of dots with a replica of the gaze cursor
  * travelling to one, holding it until the ring closes, firing, and moving on to
- * another. It is the whole product in one loop, before a word of copy.
+ * another. it is the whole product in one loop, before a word of copy.
  */
 function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
   const ctx = canvas.getContext('2d');
@@ -202,7 +202,7 @@ function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
   const DOT = '#233150';
   const SKY = '#38bdf8';
   const LIME = '#a3e635';
-  /** Roughly one dot per this many px, so spacing stays near square. */
+  /** roughly one dot per this many px, so spacing stays near square. */
   const PITCH = 74;
   const HOLD_AFTER_FIRE = 520;
 
@@ -233,7 +233,7 @@ function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
 
   const size = () => {
     const r = canvas.getBoundingClientRect();
-    // Only touch the backing store when the CSS box actually changed. Writing
+    // only touch the backing store when the css box actually changed. writing
     // canvas.width alters the element's intrinsic size, so an unconditional
     // write here is a resize loop waiting to happen.
     if (r.width === cssW && r.height === cssH) return;
@@ -252,12 +252,12 @@ function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
       py = h / 2;
     }
     trail.length = 0;
-    // The first measurement happens before the screen is mounted, so it reads
-    // 0x0. Reduced motion has no loop to catch up, so redraw on every resize.
+    // the first measurement happens before the screen is mounted, so it reads
+    // 0x0. reduced motion has no loop to catch up, so redraw on every resize.
     if (REDUCED.matches && w > 0) draw(0);
   };
 
-  /** Somewhere else, and far enough that the move reads as a saccade. */
+  /** somewhere else, and far enough that the move reads as a saccade. */
   const pickTarget = () => {
     if (grid.length < 2) return;
     const from = grid[target]!;
@@ -276,7 +276,7 @@ function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
   };
 
   const draw = (dt: number) => {
-    // Hidden below the two-column breakpoint, where it measures 0x0.
+    // hidden below the two-column breakpoint, where it measures 0x0.
     if (w === 0 || h === 0) return;
     if (!grid.length) grid = buildGrid();
     const t = grid[target];
@@ -317,7 +317,7 @@ function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
     ctx.stroke();
 
     if (firedFor > 0) {
-      // The commit pulse: a lime ring expanding out of the dot that fired.
+      // the commit pulse: a lime ring expanding out of the dot that fired.
       const k = Math.min(firedFor / HOLD_AFTER_FIRE, 1);
       ctx.beginPath();
       ctx.arc(t.x, t.y, 14 + k * 18, 0, Math.PI * 2);
@@ -358,7 +358,7 @@ function paintField(canvas: HTMLCanvasElement, root: HTMLElement): void {
 
   let last = performance.now();
   const loop = (t: number) => {
-    // The screen is swapped by replacing the mount's children, so detachment is
+    // the screen is swapped by replacing the mount's children, so detachment is
     // the signal to stop rather than an explicit teardown call.
     if (!root.isConnected) return;
     const dt = Math.min(t - last, 64);
@@ -435,7 +435,7 @@ export class SetupScreen {
       { normal: 'bg-accent-500', ok: 'bg-glow', warn: 'bg-warn', error: 'bg-danger' }[tone];
   }
 
-  /** Replace the action row. */
+  /** replace the action row. */
   setActions(buttons: Array<{ label: string; primary?: boolean; onClick: () => void }>): void {
     this.actions.innerHTML = '';
     for (const b of buttons) {

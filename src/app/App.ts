@@ -53,7 +53,7 @@ export class App {
 
   private concepts: string[] = [];
   private composeTimer = 0;
-  /** True while a dwell ring is visibly filling. See `scheduleCompose`. */
+  /** true while a dwell ring is visibly filling. see `schedulecompose`. */
   private dwellCommitting = false;
   private generating = false;
   private candidates: string[] = [];
@@ -164,7 +164,7 @@ export class App {
       if (this.phase !== 'setup') return;
       if (s.kind === 'loading') setup.set('llm', s.detail, s.pct, 'normal');
       else if (s.kind === 'ready') {
-        // Labelled the same way the template-fallback path is: if the model
+        // labelled the same way the template-fallback path is: if the model
         // running is not the one that was advertised (smaller, because this
         // browser's storage couldn't reliably cache the big one), say so.
         const note = s.downsized ? ' - smaller model, limited browser storage' : '';
@@ -213,7 +213,7 @@ export class App {
 
   private startMouseMode(): void {
     this.mouseMode = true;
-    // The overlay was a setup aid. Board default is clean.
+    // overlay was just a setup aid, board stays clean by deafult.
     this.overlay.setVisible(CONFIG.ui.debugOverlayDefault);
     toast('Mouse mode: the cursor follows your pointer', 'info', 3000);
     this.showBoard();
@@ -246,20 +246,20 @@ export class App {
       }
       try {
         const model = this.estimator.fit(result.samples);
-        // cvErrorPx is the held-out error, so it is directly comparable to the
-        // tile size (~84-140 px). Above roughly a tile radius the cursor will
+        // cverrorpx is the held-out error, so it is directly comparable to the
+        // tile size (~84-140 px). above roughly a tile radius the cursor will
         // not reliably land where the user is looking, and telling them to
         // redo it beats letting them fight a bad fit.
         const px = Math.round(model.cvErrorPx);
         const badFit = px > 120;
-        // The sway pass is the only source of head-pose variance. If the user
+        // the sway pass is the only source of head-pose variance. if the user
         // sat still through it there is nothing to fit the compensation terms
         // from, head mode has no vertical axis, and iris mode will drift the
-        // moment they shift position. That is worth saying out loud, because
+        // moment they shift position. that is worth saying out loud, because
         // the fit itself will look perfectly healthy.
         const { yaw, pitch } = result.headSpread;
         const noSway = yaw < 0.12 || pitch < 0.08;
-        // A high outlier fraction (see gaze/ridge.ts's Huber pass) means a lot
+        // a high outlier fraction (see gaze/ridge.ts's huber pass) means a lot
         // of frames disagreed sharply with the rest of the capture - a shaky
         // camera, bad lighting, or someone walking through frame - which is a
         // more useful thing to tell the user than just "the fit is loose".
@@ -299,7 +299,7 @@ export class App {
         void this.runSetup();
         return;
       }
-      // The overlay was a setup aid; the board should be clean by default.
+      // the overlay was a setup aid; the board should be clean by default.
       this.overlay.setVisible(CONFIG.ui.debugOverlayDefault);
       this.showBoard();
     });
@@ -310,7 +310,7 @@ export class App {
   private showBoard(): void {
     this.phase = 'board';
     this.dwell.enabled = true;
-    // Coming back from a recalibration, the menu may still be open behind us.
+    // back from recalib, menu might still be open behind us.
     this.board.closeMenu();
     this.board.setRecalibrateAvailable(!this.mouseMode);
     this.syncSystemState();
@@ -324,9 +324,9 @@ export class App {
     left.appendChild(this.history.root);
 
     const right = document.createElement('div');
-    // Explicit width on purpose. Without it the column is sized by its widest
+    // explicit width on purpose. without it the column is sized by its widest
     // child, so toggling the overlay on widened the column and shunted the
-    // right-anchored HUD left. It is the same clamp `layoutRing` reserves.
+    // right-anchored hud left. it is the same clamp `layoutring` reserves.
     right.className = 'pointer-events-auto absolute top-6 right-6 z-20 flex flex-col gap-3';
     right.style.width = sidePanelWidthCss();
     right.append(this.hud.root, this.overlay.root);
@@ -335,7 +335,7 @@ export class App {
     this.setScreen(wrap);
 
     this.cursor.setVisible(true);
-    // Wait for the entry animations before measuring hit boxes.
+    // wait for entry anims b4 measuring hit boxes.
     requestAnimationFrame(() => this.syncTargets());
     setTimeout(() => this.dwell.refreshRects(), 500);
 
@@ -382,8 +382,8 @@ export class App {
     }
 
     if (!frame) {
-      // Face lost: freeze the cursor where it was rather than snapping it to a
-      // stale prediction, and let the dwell machine idle out. If it stays lost
+      // face lost: freeze the cursor where it was rather than snapping it to a
+      // stale prediction, and let the dwell machine idle out. if it stays lost
       // past the grace window, say so - a frozen cursor with no explanation
       // reads as the board being broken, not as tracking being paused.
       if (this.faceLostSince === null) this.faceLostSince = t;
@@ -399,7 +399,7 @@ export class App {
     this.faceLostToasted = false;
 
     const closed = bothEyesClosed(frame, CONFIG.blink.closedThreshold);
-    // Only feed the regression while the eyes are open - closed lids make the
+    // only feed the regression while the eyes are open - closed lids make the
     // iris landmarks meaningless and would yank the cursor across the screen.
     const point = closed ? this.estimator.point : this.estimator.update(frame);
     if (point) this.cursor.move(point);
@@ -410,7 +410,7 @@ export class App {
   private hudTick = 0;
 
   private refreshHud(): void {
-    // The HUD is text; 60 Hz updates are wasted layout work.
+    // the hud is text; 60 hz updates are wasted layout work.
     if (performance.now() - this.hudTick < 250) return;
     this.hudTick = performance.now();
     const s = this.llm.state;
@@ -435,8 +435,8 @@ export class App {
 
     if (id.startsWith('word:')) {
       this.addConcept(id.slice(5));
-      // Gaze-confirmed only: a mouse click on the same tile goes through
-      // Board's onWord callback, not this dwell-fire path, precisely because
+      // gaze-confirmed only: a mouse click on the same tile goes through
+      // board's onword callback, not this dwell-fire path, precisely because
       // a click tells us nothing about where the eyes actually were.
       if (!this.mouseMode) {
         this.estimator.recordImplicitCalibration({
@@ -466,15 +466,15 @@ export class App {
     if (!word) return;
     const concept = conceptText(word.label);
 
-    // Same word twice in a row is almost always a double-fire, not intent.
+    // same word twice in a row is almost always a double-fire, not intent.
     if (this.concepts.at(-1) === concept) return;
 
     this.concepts.push(concept);
     this.board.setConcepts(this.concepts);
 
-    // Speak the word immediately. See CONFIG.llm.speakConceptOnSelect - for a
+    // speak the word immediately. see config.llm.speakconceptonselect - for a
     // single-word message this is the entire utterance, and it must not wait on
-    // the compose window. It is deliberately not logged to the conversation
+    // the compose window. it is deliberately not logged to the conversation
     // history: history is what was *said as a message*, and the words are
     // already visible in the concept strip.
     if (CONFIG.llm.speakConceptOnSelect) this.speaker.speak(word.label);
@@ -488,10 +488,10 @@ export class App {
   }
 
   /**
-   * Open a category's ring. Picked words carry over untouched - a message can
+   * open a category's ring. picked words carry over untouched - a message can
    * mix words from several categories - and moving between rings counts as
    * still composing, so it restarts the compose window just like picking a
-   * word does. Otherwise the 2.4 s window would run out on the way from one
+   * word does. otherwise the 2.4 s window would run out on the way from one
    * category to the next.
    */
   private openCategory(id: CategoryId): void {
@@ -514,9 +514,9 @@ export class App {
     this.board.startComposeCountdown(CONFIG.llm.composeGraceMs);
     this.composeTimer = window.setTimeout(() => {
       this.composeTimer = 0;
-      // Never compose out from under a ring that is visibly filling - the user
-      // is mid-selection (often "Back to categories" on the way to another
-      // word). Give them a fresh window instead; the fire itself re-arms it.
+      // never compose out from under a ring that is visibly filling - the user
+      // is mid-selection (often "back to categories" on the way to another
+      // word). give them a fresh window instead; the fire itself re-arms it.
       if (this.dwellCommitting) {
         this.scheduleCompose();
         return;
@@ -557,17 +557,17 @@ export class App {
       this.generating = false;
     }
 
-    // The user may have hit Back or Clear while the model was working.
+    // the user may have hit back or clear while the model was working.
     if (this.board.mode !== 'candidates') return;
 
-    // The bare words go last: the model's sentences are the point of the
+    // the bare words go last: the model's sentences are the point of the
     // feature, but the literal option must always be reachable in case the
     // generated ones miss what the user meant.
     this.candidates = [...suggestion.sentences];
     let plainIndex = -1;
     if (CONFIG.llm.plainWordsCandidate) {
       const plain = plainPhrase(concepts);
-      // Skip it if the model already produced effectively the same string.
+      // skip it if the model already produced effectively the same string.
       const dup = this.candidates.some((s) => normalise(s) === normalise(plain));
       if (!dup) plainIndex = this.candidates.push(plain) - 1;
     }
@@ -609,17 +609,17 @@ export class App {
     this.cancelCompose();
     this.board.setConcepts(this.concepts);
     this.board.showConcepts();
-    // A finished or cleared message starts the next one from the top.
+    // a finished or cleared message starts the next one from the top.
     this.board.showCategories();
     this.syncTargets();
-    // Hold the sentence for a beat before the board empties, so a round ends on
+    // hold the sentence for a beat before the board empties, so a round ends on
     // what the user achieved rather than on an empty prompt to start again.
     if (spoken) this.board.showSpoken(spoken, CONFIG.ui.spokenHoldMs);
   }
 
   /**
-   * Remove the last concept. Magnetic targets make the occasional wrong tile
-   * unavoidable, and before this the only remedy was Clear, which threw away
+   * remove the last concept. magnetic targets make the occasional wrong tile
+   * unavoidable, and before this the only remedy was clear, which threw away
    * the words the user had got right along with the one they had not.
    */
   private undoConcept(): void {
@@ -637,8 +637,8 @@ export class App {
     this.board.setConcepts(this.concepts);
     this.syncTargets();
     toast(`Removed "${removed}"`, 'info', 1400);
-    // Re-arm rather than cancel: the user is still composing, they just took a
-    // word back. With nothing left there is nothing to compose from.
+    // re-arm rather than cancel: the user is still composing, they just took a
+    // word back. with nothing left there is nothing to compose from.
     if (this.concepts.length) this.scheduleCompose();
     else this.cancelCompose();
   }
@@ -653,9 +653,9 @@ export class App {
   }
 
   private backToConcepts(): void {
-    // Deliberately does NOT re-arm the compose timer: Back means "let me keep
+    // deliberately does not re-arm the compose timer: back means "let me keep
     // picking", and rescheduling here would bounce the user straight back to
-    // the candidate list a moment later. Adding the next word re-arms it.
+    // the candidate list a moment later. adding the next word re-arms it.
     this.cancelCompose();
     this.board.showConcepts();
     this.board.setConcepts(this.concepts);

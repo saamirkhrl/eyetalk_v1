@@ -3,7 +3,7 @@ import { CATEGORIES, CONFIG, type CategoryId, sidePanelWidthPx } from '../core/i
 import type { DwellTarget } from './dwell.ts';
 import { Tile } from './tile.ts';
 
-/** The operator controls that used to be keyboard shortcuts. */
+/** the operator controls that used to be keyboard shortcuts. */
 export type SystemAction = 'recalibrate' | 'toggleCursor' | 'toggleOverlay' | 'stopSpeech';
 
 export interface BoardCallbacks {
@@ -35,7 +35,7 @@ export class Board {
   private modeDesc!: { iris: HTMLElement; head: HTMLElement };
 
   private categoryTiles = new Map<CategoryId, Tile>();
-  /** Every word tile across all categories, keyed by word id (ids are unique). */
+  /** every word tile across all categories, keyed by word id (ids are unique). */
   private wordTiles = new Map<string, Tile>();
   private actionTiles = new Map<string, Tile>();
   private menuTiles = new Map<string, Tile>();
@@ -43,7 +43,7 @@ export class Board {
   private cb: BoardCallbacks;
 
   mode: 'concepts' | 'candidates' = 'concepts';
-  /** Which ring is showing in concepts mode: a category's words, or (null) the categories. */
+  /** which ring is showing in concepts mode: a category's words, or (null) the categories. */
   private view: CategoryId | null = null;
   private menuOpen = false;
   private concepts: string[] = [];
@@ -82,7 +82,7 @@ export class Board {
     window.addEventListener('resize', () => this.layoutRing());
   }
 
-  /** Fires whenever the set of dwell targets changes. */
+  /** fires whenever the set of dwell targets changes. */
   onTargetsChanged(fn: () => void): void {
     this.changeHandlers.add(fn);
   }
@@ -92,8 +92,8 @@ export class Board {
   }
 
   /**
-   * Every ring tile is built once up front; only the current ring's tiles are
-   * in the DOM. Re-inserting a tile replays its pop-in animation, so switching
+   * every ring tile is built once up front; only the current ring's tiles are
+   * in the dom. re-inserting a tile replays its pop-in animation, so switching
    * rings reads as the new set arriving rather than labels changing in place.
    */
   private buildWordRing(): void {
@@ -112,7 +112,7 @@ export class Board {
     this.mountRing();
   }
 
-  /** The tiles of the ring currently showing, in ring order, keyed by dwell id. */
+  /** the tiles of the ring currently showing, in ring order, keyed by dwell id. */
   private ringTiles(): Array<[string, Tile]> {
     if (this.view === null) {
       return [...this.categoryTiles].map(([id, t]) => [`cat:${id}`, t]);
@@ -131,16 +131,16 @@ export class Board {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    /** Width reserved for the history / HUD columns plus a gutter. */
+    /** width reserved for the history / hud columns plus a gutter. */
     const SIDE_RESERVE =
       sidePanelWidthPx(w) + CONFIG.ui.sidePanelInsetPx + CONFIG.ui.sideGutterPx;
-    /** Height reserved for the Clear / Speak row plus a gutter. */
+    /** height reserved for the clear / speak row plus a gutter. */
     const BOTTOM_RESERVE = 112;
     const MIN_SIZE = 56;
 
-    // The reserves are hard. `hitTest` has no occlusion pass, so a tile that
+    // the reserves are hard. `hittest` has no occlusion pass, so a tile that
     // slides under a panel still charges and fires behind it - the worst
-    // failure the board has. Size and radius are therefore solved together:
+    // failure the board has. size and radius are therefore solved together:
     // when the viewport cannot afford a full ring the tiles shrink, and the
     // radius never crosses into a reserve.
     let size = Math.min(140, Math.min(w, h) * 0.15);
@@ -149,7 +149,7 @@ export class Board {
     for (;;) {
       rx = Math.min(w / 2 - size / 2 - SIDE_RESERVE, 400);
       ry = Math.min(h / 2 - size / 2 - BOTTOM_RESERVE, 300);
-      // Eight tiles at 45 degrees apart sit 0.765r from each other, so the
+      // eight tiles at 45 degrees apart sit 0.765r from each other, so the
       // radius has to clear 1.31 tiles or neighbours overlap.
       const minR = size * 1.35;
       if ((rx >= minR && ry >= minR) || size <= MIN_SIZE) break;
@@ -296,11 +296,11 @@ export class Board {
   }
 
   /**
-   * Static reference panel, not a dwell target - `targets()` only reads from
-   * `menuTiles`, so this is safe to leave in the menu without it stealing a
+   * static reference panel, not a dwell target - `targets()` only reads from
+   * `menutiles`, so this is safe to leave in the menu without it stealing a
    * gaze that was meant for one of the toggle tiles.
    *
-   * Explains the two things that are otherwise invisible: what each keyboard
+   * explains the two things that are otherwise invisible: what each keyboard
    * shortcut does (the mouse/keyboard path has no other way to learn
    * them) and what "iris" vs "head" cursor mode actually trades off, with
    * whichever one is currently active highlighted so switching is legible
@@ -359,7 +359,7 @@ export class Board {
   }
 
   /**
-   * Hide Recalibrate when there is no camera. A dwell target that fills, flashes
+   * hide recalibrate when there is no camera. a dwell target that fills, flashes
    * green and then refuses is worse than one that is not offered.
    */
   setRecalibrateAvailable(v: boolean): void {
@@ -371,7 +371,7 @@ export class Board {
     if (this.menuOpen) this.notify();
   }
 
-  /** Reflect the app's current state in the toggle labels. */
+  /** reflect the app's current state in the toggle labels. */
   setSystemState(s: SystemState): void {
     this.menuTiles.get('cursor')!.setLabel(s.cursorMode === 'iris' ? 'Cursor: iris' : 'Cursor: head');
     this.menuTiles.get('overlay')!.setLabel(s.overlayOn ? 'Overlay: on' : 'Overlay: off');
@@ -413,12 +413,12 @@ export class Board {
     this.renderCentre();
   }
 
-  /** The category whose words are showing, or null on the category ring. */
+  /** the category whose words are showing, or null on the category ring. */
   get currentCategory(): CategoryId | null {
     return this.view;
   }
 
-  /** Swap the ring to one category's words. Picked concepts are untouched. */
+  /** swap the ring to one category's words. picked concepts are untouched. */
   openCategory(id: CategoryId): void {
     if (this.view === id) return;
     this.view = id;
@@ -428,7 +428,7 @@ export class Board {
     this.notify();
   }
 
-  /** Swap the ring back to the categories. Picked concepts are untouched. */
+  /** swap the ring back to the categories. picked concepts are untouched. */
   showCategories(): void {
     if (this.view === null) return;
     this.view = null;
@@ -439,9 +439,9 @@ export class Board {
   }
 
   /**
-   * Undo only exists while there is something to undo: a permanently visible
+   * undo only exists while there is something to undo: a permanently visible
    * dead target is one more thing to read on a board that already has ten.
-   * "Back to categories" likewise only exists inside a category.
+   * "back to categories" likewise only exists inside a category.
    */
   private syncUndoTile(): void {
     let changed = false;
@@ -467,7 +467,7 @@ export class Board {
     const box = document.createElement('div');
     box.className = 'flex max-w-md flex-col items-center gap-3 text-center';
 
-    // Which ring is up, so a user inside a category knows where they are.
+    // which ring is up, so a user inside a category knows where they are.
     const where = document.createElement('div');
     where.className = 'text-[11px] font-semibold tracking-[0.22em] text-accent-300 uppercase';
     where.textContent =
@@ -491,7 +491,7 @@ export class Board {
       const strip = document.createElement('div');
       strip.className = 'pointer-events-auto flex flex-wrap items-center justify-center gap-2';
       this.concepts.forEach((c, i) => {
-        // Clickable but deliberately not a dwell target. The centre is where the
+        // clickable but deliberately not a dwell target. the centre is where the
         // user rests their gaze to read what they have picked, and a dwell
         // target there would delete a word for looking at it.
         const chip = document.createElement('button');
@@ -508,7 +508,7 @@ export class Board {
       });
       box.append(label, strip);
 
-      // Countdown to auto-compose. Rendered here so it sits directly under the
+      // countdown to auto-compose. rendered here so it sits directly under the
       // chips the user is already looking at.
       const wrap = document.createElement('div');
       wrap.className = 'mt-1 flex flex-col items-center gap-1.5';
@@ -527,8 +527,8 @@ export class Board {
   }
 
   /**
-   * Hold the sentence that was just spoken in the centre for a beat before the
-   * board empties. Without it the strongest moment in a round is followed
+   * hold the sentence that was just spoken in the centre for a beat before the
+   * board empties. without it the strongest moment in a round is followed
    * immediately by its blankest state.
    */
   showSpoken(text: string, ms: number): void {
@@ -549,7 +549,7 @@ export class Board {
     }, ms);
   }
 
-  /** Start the "no further selection -> compose" countdown bar. */
+  /** start the "no further selection -> compose" countdown bar. */
   startComposeCountdown(ms: number): void {
     this.composeMs = ms;
     this.runComposeBar();
@@ -567,7 +567,7 @@ export class Board {
     if (!bar || !this.composeMs) return;
     bar.style.transition = 'none';
     bar.style.width = '0%';
-    // Force a reflow so the browser does not collapse the reset and the
+    // force a reflow so the browser does not collapse the reset and the
     // animation into one style recalculation (which would skip the transition).
     void bar.offsetWidth;
     bar.style.transition = `width ${this.composeMs}ms linear`;
@@ -576,7 +576,7 @@ export class Board {
 
   /* -------------------------------------------------------------- candidates */
 
-  /** Show the "model is working" placeholder while generation runs. */
+  /** show the "model is working" placeholder while generation runs. */
   showThinking(concepts: string[]): void {
     this.mode = 'candidates';
     this.syncUndoTile();
@@ -600,14 +600,14 @@ export class Board {
     this.notify();
   }
 
-  /** Live-stream the model's tokens into the thinking card. */
+  /** live-stream the model's tokens into the thinking card. */
   appendStream(text: string): void {
     const el = this.candidateWrap.querySelector('[data-stream]');
     if (!el) return;
     el.textContent = (el.textContent + text).slice(-220);
   }
 
-  /** @param plainIndex index of the "just the picked words" entry, if present. */
+  /** @param plainindex index of the "just the picked words" entry, if present. */
   showCandidates(sentences: string[], source: 'model' | 'fallback', plainIndex = -1): void {
     this.mode = 'candidates';
     this.syncUndoTile();
@@ -646,7 +646,7 @@ export class Board {
     this.notify();
   }
 
-  /** Return to the word ring. */
+  /** return to the word ring. */
   showConcepts(): void {
     this.mode = 'concepts';
     this.syncUndoTile();
@@ -672,10 +672,10 @@ export class Board {
 
   /* ------------------------------------------------------------------ dwell */
 
-  /** The tiles the dwell controller should currently consider. */
+  /** the tiles the dwell controller should currently consider. */
   targets(): DwellTarget[] {
     const out: DwellTarget[] = [];
-    // The menu is modal: while it is up nothing behind it is selectable, or a
+    // the menu is modal: while it is up nothing behind it is selectable, or a
     // gaze resting on the panel would snap through to a word tile underneath.
     if (this.menuOpen) {
       for (const [key, tile] of this.menuTiles) {
@@ -706,7 +706,7 @@ export class Board {
     return out;
   }
 
-  /** Flash the tile that just fired. */
+  /** flash the tile that just fired. */
   flash(id: string): void {
     if (id.startsWith('word:')) this.wordTiles.get(id.slice(5))?.flash();
     else if (id.startsWith('cat:')) this.categoryTiles.get(id.slice(4) as CategoryId)?.flash();

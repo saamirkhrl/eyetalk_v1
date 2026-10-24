@@ -4,7 +4,7 @@ function alpha(cutoffHz: number, dtSec: number): number {
   return 1 / (1 + tau / dtSec);
 }
 
-/** Single-channel One Euro filter. */
+/** single-channel one euro filter. */
 export class OneEuroFilter {
   private xPrev: number | null = null;
   private dxHat = 0;
@@ -46,7 +46,7 @@ export class OneEuroFilter {
   }
 }
 
-/** Convenience wrapper: independent One Euro filters on x and y. */
+/** convenience wrapper: independent one euro filters on x and y. */
 export class OneEuroPoint {
   private fx: OneEuroFilter;
   private fy: OneEuroFilter;

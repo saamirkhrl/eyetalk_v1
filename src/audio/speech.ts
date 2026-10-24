@@ -1,9 +1,9 @@
-/** Text-to-speech over the Web Speech API. */
+/** text-to-speech over the web speech api. */
 
 export class Speaker {
   private voice: SpeechSynthesisVoice | null = null;
   readonly supported = typeof speechSynthesis !== 'undefined';
-  /** Total characters spoken this session, for the metrics HUD. */
+  /** total characters spoken this session, for the metrics hud. */
   charsSpoken = 0;
 
   constructor() {
@@ -27,7 +27,7 @@ export class Speaker {
   }
 
   /**
-   * False when the browser has no usable synthesis voice. `speak()` is silent
+   * false when the browser has no usable synthesis voice. `speak()` is silent
    * in that case and throws nothing, so without this the app would go on
    * recording sentences it never actually said.
    */

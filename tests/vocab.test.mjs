@@ -1,5 +1,5 @@
 /*
- * Vocabulary checks: every word on the board must be usable by both sentence
+ * vocabulary checks: every word on the board must be usable by both sentence
  * paths - tagged correctly in the language-model prompt, and turned into real
  * sentences by the template fallback the board shows whenever the model is
  * missing, slow, or wrong.
@@ -8,7 +8,7 @@ import assert from 'node:assert';
 import { CATEGORIES, VOCABULARY, conceptText, findWord } from '../src/core/config.ts';
 import { buildMessages, fallbackSentences, isDegenerate, promptHints } from '../src/nlp/prompt.ts';
 
-/** A template sentence must look like a finished sentence, not a fill-in. */
+/** a template sentence must look like a finished sentence, not a fill-in. */
 function assertSentence(s, context) {
   assert.ok(typeof s === 'string' && s.trim().length > 0, `empty sentence for ${context}`);
   assert.ok(!/[{}]|undefined/.test(s), `unfilled template for ${context}: "${s}"`);
@@ -18,7 +18,7 @@ function assertSentence(s, context) {
 }
 
 {
-  // Eight per ring keeps every ring at the 45 degree spacing layoutRing solves for.
+  // eight per ring keeps every ring at the 45 degree spacing layoutring solves for.
   for (const c of CATEGORIES) {
     assert.strictEqual(c.words.length, 8, `${c.id} has ${c.words.length} words, expected 8`);
   }
@@ -35,8 +35,8 @@ function assertSentence(s, context) {
 }
 
 {
-  // A word with no canned phrasing would fall through to "I need <word>." -
-  // fine for "help", nonsense for "why". Every word needs its own.
+  // a word with no canned phrasing would fall through to "i need <word>." -
+  // fine for "help", nonsense for "why". every word needs its own.
   for (const w of VOCABULARY) {
     const c = conceptText(w.label);
     const out = fallbackSentences([c], 3);
@@ -48,7 +48,7 @@ function assertSentence(s, context) {
 }
 
 {
-  // Every pair across two different categories, both orders.
+  // every pair across two different categories, both orders.
   let pairs = 0;
   for (const a of VOCABULARY) {
     for (const b of VOCABULARY) {
@@ -68,7 +68,7 @@ function assertSentence(s, context) {
 }
 
 {
-  // Question words and quick replies change the sentence's shape, so the
+  // question words and quick replies change the sentence's shape, so the
   // model is told how; every other word goes through as just the word.
   for (const w of VOCABULARY) {
     const c = conceptText(w.label);

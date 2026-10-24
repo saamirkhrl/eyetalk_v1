@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ---------------------------------------------------------------------------
-   Design tokens. Tailwind v4 reads @theme and emits utilities for each entry,
+   design tokens. tailwind v4 reads @theme and emits utilities for each entry,
    so `bg-ink-900` / `text-accent-400` / `shadow-glow` below are real classes.
    --------------------------------------------------------------------------- */
 @theme {
@@ -67,7 +67,7 @@
   }
 }
 
-/* Fired once when a tile commits, so the whole board reads as "that fired". */
+/* fired once when a tile commits, so the whole board reads as "that fired". */
 @keyframes tile-fire {
   0% {
     transform: scale(1);
@@ -90,10 +90,10 @@
 }
 
 /*
- * Calibration instruction bubble. The user's fovea is pinned to the dot by
+ * calibration instruction bubble. the user's fovea is pinned to the dot by
  * instruction, so text anywhere else on screen (the top status panel) is only
  * ever seen in blurry peripheral vision - which is exactly why "move your
- * head" got missed. This sits right next to the dot instead, and bobs because
+ * head" got missed. this sits right next to the dot instead, and bobs because
  * peripheral vision is far more sensitive to motion than to static text.
  */
 @keyframes cal-bubble-bob {
@@ -138,8 +138,8 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Nothing in the app should be text-selectable: a stray drag
-     leaves a blue selection rectangle across the board. */
+  /* no text selection anywhere: a stray drag
+     leaves a blue selection box across the board. */
   #app {
     user-select: none;
     -webkit-user-select: none;
@@ -154,7 +154,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Component utilities. Declared with @utility (not @layer components) so they
+/* component utilities. declared with @utility (not @layer components) so they
    can be composed with @apply and used with variants. */
 @utility screen {
   position: absolute;
@@ -186,7 +186,7 @@
     py-1 text-xs font-medium tracking-wide text-slate-300;
 }
 
-/* The gaze cursor sits above everything and must never eat pointer events. */
+/* the gaze cursor sits above everything and must never eat pointer events. */
 #gaze-cursor {
   position: fixed;
   top: 0;
@@ -202,8 +202,8 @@
 }
 
 /*
- * Every control in the app sets `outline-none` so the dwell ring is the only
- * thing drawing on a tile. That left keyboard users tabbing blind through ten
+ * every control in the app sets `outline-none` so the dwell ring is the only
+ * thing drawing on a tile. that left keyboard users tabbing blind through ten
  * identical circles, so focus is drawn back here: `button:focus-visible` beats
  * both `.ld-cta` and the `outline-none` utility on specificity, and it only
  * ever paints for a keyboard.
@@ -214,14 +214,14 @@ button:focus-visible {
 }
 
 /* ---------------------------------------------------------------------------
-   Landing screen. Namespaced under .ld so none of it can reach the board.
-   The display face is a system stack on purpose: a webfont would mean a
+   landing screen. namespaced under .ld so none of it can reach the board.
+   the display face is a system stack on purpose: a webfont would mean a
    third-party request, which the whole project is built to avoid.
    --------------------------------------------------------------------------- */
 .ld {
   --ld-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display',
     'Segoe UI', system-ui, sans-serif;
-  /* Warm white against the cool ground - the temperature gap is the point. */
+  /* warm white against the cool ground - the temperature gap is the point. */
   --ld-warm: #f2efe9;
   --ld-mute: #7d8a9f;
   --ld-line: rgb(120 150 190 / 0.14);
@@ -229,8 +229,8 @@ button:focus-visible {
 }
 
 /*
- * Everything fits one viewport: the three steps are the point of the page and
- * must not sit below the fold. Sizes are clamped against vh as well as vw, so a
+ * everything fits one viewport: the three steps are the point of the page and
+ * must not sit below the fold. sizes are clamped against vh as well as vw, so a
  * short laptop window shrinks the type and demos instead of overflowing.
  */
 .ld-scroll {
@@ -259,9 +259,9 @@ button:focus-visible {
   }
 
   /*
-   * Two-column hero: the grid spans the lede exactly - wordmark top to the
-   * bottom of the Start ring. The row is sized by the lede, and the field
-   * stretches into it, so no fixed height can drift out of sync. The field
+   * two-column hero: the grid spans the lede exactly - wordmark top to the
+   * bottom of the start ring. the row is sized by the lede, and the field
+   * stretches into it, so no fixed height can drift out of sync. the field
    * takes the wider column: it is the thing that explains what the product
    * does, and the lede is four short lines.
    */
@@ -302,7 +302,7 @@ button:focus-visible {
   margin-top: clamp(1rem, 3vh, 2.5rem);
 }
 
-/* The CTA is a dwell target, not a button-shaped rectangle. */
+/* the cta is a dwell target, not a button-shaped rectangle. */
 .ld-cta {
   position: relative;
   display: inline-flex;
@@ -390,7 +390,7 @@ button:focus-visible {
 
 
 /*
- * The camera has to be named before Start is pressed, not after: a permission
+ * the camera has to be named before start is pressed, not after: a permission
  * dialog arriving with no warning is the one moment this page can lose a user's
  * trust, and privacy is the product's whole position.
  */
@@ -405,10 +405,10 @@ button:focus-visible {
 }
 
 /*
- * Absolutely positioned on purpose: the canvas carries an intrinsic size and
+ * absolutely positioned on purpose: the canvas carries an intrinsic size and
  * the draw code writes canvas.width from its own measured rect, so in flow
- * that measurement feeds back into the row height through the ResizeObserver.
- * The size must be stated, not `auto` - a canvas is a replaced element, so
+ * that measurement feeds back into the row height through the resizeobserver.
+ * the size must be stated, not `auto` - a canvas is a replaced element, so
  * `width: auto` resolves to the intrinsic size and drops the right/bottom
  * insets, and the backing-store write then grows it every observer tick.
  */
@@ -460,7 +460,7 @@ button:focus-visible {
   background: rgb(6 8 15 / 0.55);
 }
 
-/* The dot field is the box: it fills it rather than floating in the middle. */
+/* the dot field is the box: it fills it rather than floating in the middle. */
 .ld-demo:has(.d-dots) {
   padding: 10px;
 }
@@ -493,7 +493,7 @@ button:focus-visible {
 
 /* step demos ------------------------------------------------------------- */
 /*
- * Eighteen dots on a full 6x3 field, filling the box. A lattice with holes in it
+ * eighteen dots on a full 6x3 field, filling the box. a lattice with holes in it
  * reads as clutter rather than as a grid, and the count is the real one either
  * way, so the field stays even and the scan carries the sequence.
  */
@@ -515,7 +515,7 @@ button:focus-visible {
   animation-delay: calc(var(--i) * 0.3s);
 }
 
-/* The five sway dots: same scan, lime, because the instruction inverts there. */
+/* the five sway dots: same scan, lime, because the instruction inverts there. */
 .d-dots i.d-sway {
   animation-name: d-scan-sway;
 }
@@ -677,18 +677,7 @@ button:focus-visible {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-/* Staged entrance. Reduced motion gets the finished state immediately. */
+/* staged entrance. reduced motion gets the finished state immediately. */
 @media (prefers-reduced-motion: no-preference) {
   .ld-mark,
   .ld-copy,
@@ -753,7 +742,7 @@ button:focus-visible {
 }
 
 /*
- * Phones are not a supported target - see the notice in landing.ts. The page
+ * phones are not a supported target - see the notice in landing.ts. the page
  * still has to read properly for whoever lands on one, so the preview and the
  * step demos step aside and the column is allowed to scroll.
  */
@@ -775,7 +764,7 @@ button:focus-visible {
 }
 
 /*
- * Very short windows (a laptop with devtools docked, a split screen): the hero
+ * very short windows (a laptop with devtools docked, a split screen): the hero
  * copy is the first thing to go, because the three steps carry the same
  * information in less height.
  */

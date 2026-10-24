@@ -11,7 +11,7 @@ export type LlmState =
 
 export interface Suggestion {
   sentences: string[];
-  /** Where they came from - surfaced in the HUD so the user can tell. */
+  /** where they came from - surfaced in the hud so the user can tell. */
   source: 'model' | 'fallback';
   ms: number;
 }
@@ -26,7 +26,7 @@ export class LlmClient {
   private stateHandlers = new Set<(s: LlmState) => void>();
   private tokenHandlers = new Set<(text: string) => void>();
   /**
-   * Has a load failure already triggered one fresh-worker retry? Caps it at
+   * has a load failure already triggered one fresh-worker retry? caps it at
    * one: a device forced to 'wasm' failing again is a real failure (out of
    * memory on the smallest model this app offers), not something a third
    * attempt would fix.
@@ -34,7 +34,7 @@ export class LlmClient {
   private retriedFreshWorker = false;
 
   state: LlmState = { kind: 'idle' };
-  /** Wall-clock ms of the last successful model generation. */
+  /** wall-clock ms of the last successful model generation. */
   lastGenMs = 0;
 
   onState(fn: (s: LlmState) => void): () => void {
@@ -43,7 +43,7 @@ export class LlmClient {
     return () => this.stateHandlers.delete(fn);
   }
 
-  /** Streamed text, for the "thinking" ticker. */
+  /** streamed text, for the "thinking" ticker. */
   onToken(fn: (text: string) => void): () => void {
     this.tokenHandlers.add(fn);
     return () => this.tokenHandlers.delete(fn);
@@ -58,21 +58,21 @@ export class LlmClient {
     return this.state.kind === 'ready';
   }
 
-  /** Kick off the download/compile. */
+  /** kick off the download/compile. */
   start(): void {
     if (this.worker) return;
     this.spawnWorker();
   }
 
   /**
-   * (Re)create the worker and start loading. Used by `start()` for the first
+   * (re)create the worker and start loading. used by `start()` for the first
    * attempt and, after a load failure, by the retry in `handle()`'s 'error'
    * case - deliberately a *new* worker rather than re-sending 'load' to the
-   * existing one. `llmWorker.ts` no longer retries a failed device/model pair
+   * existing one. `llmworker.ts` no longer retries a failed device/model pair
    * in-process for exactly this reason: a failed pipeline() call can leave
-   * that worker's WASM linear memory holding partial allocations from the
+   * that worker's wasm linear memory holding partial allocations from the
    * attempt that just failed, and building a second, still-substantial model
-   * on top of that measurably raises the odds the retry fails too. A fresh
+   * on top of that measurably raises the odds the retry fails too. a fresh
    * worker gets a fresh memory space, which a retry after a memory-shaped
    * failure needs to mean anything.
    */
@@ -126,10 +126,10 @@ export class LlmClient {
         });
         break;
       case 'error':
-        // A generation error must not permanently mark the model failed if it
-        // had already loaded - one bad decode is recoverable. An error while
+        // a generation error must not permanently mark the model failed if it
+        // had already loaded - one bad decode is recoverable. an error while
         // not yet ready is a load failure: retry once, in a fresh worker, on
-        // 'wasm' - see spawnWorker()'s doc comment for why it has to be a new
+        // 'wasm' - see spawnworker()'s doc comment for why it has to be a new
         // worker rather than telling this one to try again.
         if (this.state.kind !== 'ready') {
           if (!this.retriedFreshWorker) {
@@ -171,7 +171,7 @@ export class LlmClient {
     this.pending.clear();
   }
 
-  /** Ask for candidate sentences. */
+  /** ask for candidate sentences. */
   async suggest(concepts: string[], history: string[]): Promise<Suggestion> {
     const t0 = performance.now();
     const fallback = (): Suggestion => ({
@@ -202,7 +202,7 @@ export class LlmClient {
 
     if (!result.sentences.length) return fallback();
 
-    // Top the list up with a template if the model under-delivered, so the
+    // top the list up with a template if the model under-delivered, so the
     // board always shows a consistent number of choices.
     if (result.sentences.length < CONFIG.llm.candidateCount) {
       const extra = fallbackSentences(concepts, CONFIG.llm.candidateCount).filter(

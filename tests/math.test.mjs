@@ -1,4 +1,4 @@
-// Numerical check of the hand-rolled ridge solver and the One Euro filter.
+// numerical check of the hand-rolled ridge solver and the one euro filter.
 import assert from 'node:assert';
 import { fitGazeModel, predict } from '../src/gaze/ridge.ts';
 import {
@@ -11,7 +11,7 @@ import {
 } from '../src/gaze/featureSpec.ts';
 import { OneEuroFilter } from '../src/gaze/oneEuro.ts';
 
-// Deterministic PRNG so failures reproduce.
+// deterministic prng so failures reproduce.
 let seed = 12345;
 const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 const gauss = () => (rnd() + rnd() + rnd() + rnd() - 2) * 1.2;
@@ -19,7 +19,7 @@ const gauss = () => (rnd() + rnd() + rnd() + rnd() - 2) * 1.2;
 const IRIS = FEATURE_SPECS.iris;
 const HEAD = FEATURE_SPECS.head;
 
-/** The 13 dots calibration actually shows, on a 1440x900 screen. */
+/** the 13 dots calibration actually shows, on a 1440x900 screen. */
 const TARGETS = [
   [0.1, 0.1], [0.5, 0.1], [0.9, 0.1],
   [0.1, 0.5], [0.5, 0.5], [0.9, 0.5],
@@ -50,7 +50,7 @@ const TARGETS = [
 
 /* --------------------------------------------------- standardise clamps ---- */
 {
-  // IRIS layout: [iris.x, iris.y, yaw, pitch, nose.x, nose.y, scale].
+  // iris layout: [iris.x, iris.y, yaw, pitch, nose.x, nose.y, scale].
   // axes = [0, 1] (tight clamp), compensators = [2, 3, 4, 5] (wide clamp,
   // because the sway pass exists to give them real evidence), scale (6) is
   // neither and gets the tight default.
@@ -86,7 +86,7 @@ const TARGETS = [
 
   const samples = [];
   for (let n = 0; n < 400; n++) {
-    // Kept inside the clamp so the truth and the model agree on the same basis.
+    // kept inside the clamp so the truth and the model agree on the same basis.
     const f = Array.from({ length: 7 }, () => gauss() * 0.6);
     const t = truth(f);
     samples.push({ features: f, target: { x: t.x + gauss() * 2, y: t.y + gauss() * 2 } });
@@ -109,16 +109,16 @@ const TARGETS = [
   console.log('ok  ridge recovers a known ground truth');
 }
 
-/* ---------------------------------- Huber pass survives corrupted frames --- */
+/* ---------------------------------- huber pass survives corrupted frames --- */
 /*
- * Real calibration captures are not clean: a hand crosses the camera, the
+ * real calibration captures are not clean: a hand crosses the camera, the
  * landmark lock glitches for a frame, a lighting flicker throws the iris
- * estimate off for an instant. Those frames still get recorded (nothing
+ * estimate off for an instant. those frames still get recorded (nothing
  * about them looks wrong at capture time - the face was there, the eyes were
  * open), so without an outlier-robust fit a handful of them get baked into
- * the whole session's model with the same vote as a clean frame. This is a
+ * the whole session's model with the same vote as a clean frame. this is a
  * concrete, well-documented technique for eye-tracker calibration specifically
- * (Huber- or RANSAC-reweighted least squares; see ridge.ts's fitGazeModel
+ * (huber- or ransac-reweighted least squares; see ridge.ts's fitgazemodel
  * doc comment for citations) and this test is the regression guard for it.
  */
 {
@@ -189,7 +189,7 @@ const TARGETS = [
   const norm = (w) => Math.sqrt(w.slice(1).reduce((a, v) => a + v * v, 0));
   console.log('    |w| weak lambda:', norm(weak.wx).toFixed(1), ' strong:', norm(strong.wx).toFixed(1));
   assert.ok(norm(strong.wx) < norm(weak.wx) / 10, 'ridge did not shrink the weights');
-  // With the slopes crushed, the intercept must carry the mean.
+  // with the slopes crushed, the intercept must carry the mean.
   const meanX = samples.reduce((a, s) => a + s.target.x, 0) / samples.length;
   assert.ok(
     Math.abs(strong.wx[0] - meanX) < 1,
@@ -200,17 +200,17 @@ const TARGETS = [
 
 /* ------------------------------------- head movement must not blow up ------ */
 /*
- * This is the regression test for the bug that made the cursor unusable.
+ * this is the regression test for the bug that made the cursor unusable.
  *
- * The user is told to keep their head still during calibration, so yaw/pitch/
- * roll carry only tracker jitter - a standard deviation of ~0.004 rad. Under
+ * the user is told to keep their head still during calibration, so yaw/pitch/
+ * roll carry only tracker jitter - a standard deviation of ~0.004 rad. under
  * plain per-feature z-scoring that noise is rescaled to unit variance, the fit
  * cannot distinguish it from signal, and a later 0.25 rad head turn lands 60
- * standard deviations out with quadratic terms on top. The prediction leaves
+ * standard deviations out with quadratic terms on top. the prediction leaves
  * the building.
  *
- * With the floors in featureSpec.ts the same head turn stays within a couple of
- * units, and the clamp bounds it regardless. We assert the model still tracks
+ * with the floors in featurespec.ts the same head turn stays within a couple of
+ * units, and the clamp bounds it regardless. we assert the model still tracks
  * the eyes and that a real head turn moves the cursor by a sane amount.
  */
 {
@@ -218,7 +218,7 @@ const TARGETS = [
   const samples = [];
   for (const t of TARGETS) {
     for (let k = 0; k < 30; k++) {
-      // Iris moves with the target; head is essentially frozen (jitter only).
+      // iris moves with the target; head is essentially frozen (jitter only).
       const gx = (t.x / screen.w - 0.5) * 0.11 + gauss() * 0.002;
       const gy = (t.y / screen.h - 0.5) * 0.07 + gauss() * 0.002;
       samples.push({
@@ -240,7 +240,7 @@ const TARGETS = [
   console.log('    chosen lambda:', model.lambda, ' cv error:', model.cvErrorPx.toFixed(1), 'px');
   assert.ok(model.cvErrorPx < 90, `cross-validated error too high: ${model.cvErrorPx}`);
 
-  // Centre of the screen, head still.
+  // centre of the screen, head still.
   const centre = [0, 0, 0, 0, 0, 0, 0.30];
   const pCentre = predict(model, centre);
   assert.ok(
@@ -248,7 +248,7 @@ const TARGETS = [
     `centre gaze should map near the screen centre, got ${pCentre.x},${pCentre.y}`,
   );
 
-  // Same eyes, but the head turns 0.25 rad (~14 deg) in yaw and pitch.
+  // same eyes, but the head turns 0.25 rad (~14 deg) in yaw and pitch.
   const turned = [0, 0, 0.25, 0.25, 0.02, 0.02, 0.30];
   const pTurned = predict(model, turned);
   const shift = Math.hypot(pTurned.x - pCentre.x, pTurned.y - pCentre.y);
@@ -256,7 +256,7 @@ const TARGETS = [
   assert.ok(Number.isFinite(shift), 'head turn produced a non-finite prediction');
   assert.ok(shift < 250, `head turn moved the cursor ${shift.toFixed(0)}px - it should barely move`);
 
-  // And the eyes must still steer: looking left vs right has to separate.
+  // and the eyes must still steer: looking left vs right has to separate.
   const left = predict(model, [-0.05, 0, 0, 0, 0, 0, 0.30]);
   const right = predict(model, [0.05, 0, 0, 0, 0, 0, 0.30]);
   const span = Math.abs(right.x - left.x);
@@ -267,8 +267,8 @@ const TARGETS = [
 
 /* -------------------------- cross-validation prefers a generalising fit ---- */
 {
-  // Same setup, but with one feature that is pure noise correlated with nothing.
-  // A model fitted at a tiny lambda will use it; CV must not pick that lambda.
+  // same setup, but with one feature that is pure noise correlated with nothing.
+  // a model fitted at a tiny lambda will use it; cv must not pick that lambda.
   const screen = { w: 1440, h: 900 };
   const samples = [];
   for (const t of TARGETS) {
@@ -295,9 +295,9 @@ const TARGETS = [
     ' cv error:', cv.cvErrorPx.toFixed(1),
     'px  | overfit train:', overfit.trainErrorPx.toFixed(1), 'px',
   );
-  // The unregularised fit looks better on the data it saw...
+  // the unregularised fit looks better on the data it saw...
   assert.ok(overfit.trainErrorPx <= cv.trainErrorPx + 1e-6, 'weak lambda should fit training better');
-  // ...but CV, which is what the user experiences, must not have chosen it.
+  // ...but cv, which is what the user experiences, must not have chosen it.
   assert.ok(cv.lambda > 1e-8, 'cross-validation picked the overfitting lambda');
   assert.ok(cv.cvErrorPx < 110, `cv error too high: ${cv.cvErrorPx}`);
   console.log('ok  cross-validation rejects the overfitting penalty');
@@ -305,27 +305,27 @@ const TARGETS = [
 
 /* ------------------- sway pass buys tolerance to moving your head ---------- */
 /*
- * The user's report: "right after calibration it is alright, but if I move my
+ * the user's report: "right after calibration it is alright, but if i move my
  * position even slightly, or move my laptop a little, it stops working".
  *
- * Generative model below is how the geometry actually works. Where a person is
- * looking on screen is set by their eye direction PLUS where their head is:
+ * generative model below is how the geometry actually works. where a person is
+ * looking on screen is set by their eye direction plus where their head is:
  *
- *     screen_x = cx + K * (iris_x + a*yaw + b*nose_x)
+ *     screen_x = cx + k * (iris_x + a*yaw + b*nose_x)
  *
- * During calibration the user is told to look at a dot, so they aim their eyes
+ * during calibration the user is told to look at a dot, so they aim their eyes
  * at whatever value makes that sum land on the dot - we invert the relation to
  * generate `iris` from the target and the head pose, exactly as a real user
  * does it.
  *
- * If the whole capture happens at one head pose, `yaw` and `nose_x` are
+ * if the whole capture happens at one head pose, `yaw` and `nose_x` are
  * constants, they get folded into the intercept, and the fit is silently valid
- * only at that pose. Move, and the true relation changes while the model does
- * not. Adding the sway pass - the same targets seen from many head poses - is
+ * only at that pose. move, and the true relation changes while the model does
+ * not. adding the sway pass - the same targets seen from many head poses - is
  * what turns those terms from constants into something learnable.
  *
- * This also exercises the upgrade from a single off-axis sway point to four
- * corner points (see CONFIG.gaze.swayDots): a lone off-axis point gives the
+ * this also exercises the upgrade from a single off-axis sway point to four
+ * corner points (see config.gaze.swaydots): a lone off-axis point gives the
  * axis*head gradient term evidence from exactly one direction, which is an
  * extrapolation everywhere else on the ring; four corners give it evidence
  * from four, which is why the assertion below requires the corner layout to
@@ -336,17 +336,17 @@ const TARGETS = [
   const K = 6000;
   const A_YAW = 0.35, A_PITCH = 0.35, B_NOSE = 1.2;
 
-  // Eye offset a user adopts to hit `t` from a given head pose.
+  // eye offset a user adopts to hit `t` from a given head pose.
   const irisFor = (t, head) => ({
     gx: (t.x - W / 2) / K - A_YAW * head.yaw - B_NOSE * head.nx,
     gy: (t.y - H / 2) / K - A_PITCH * head.pitch - B_NOSE * head.ny,
   });
 
-  // The tracker's *estimate* of head pose, which is not the head pose. This
-  // distinction is the whole test. A real yaw reading carries its own error, so
+  // the tracker's *estimate* of head pose, which is not the head pose. this
+  // distinction is the whole test. a real yaw reading carries its own error, so
   // millimetre-scale jitter around one position tells the model nothing about
   // how yaw maps to the screen - the correlation is buried in measurement
-  // noise. Only movement well above that noise floor is informative, which is
+  // noise. only movement well above that noise floor is informative, which is
   // what the sway pass is for.
   const POSE_NOISE = 0.008;
   const featuresFor = (t, head) => {
@@ -363,7 +363,7 @@ const TARGETS = [
   };
   const STILL = { yaw: 0, pitch: 0, nx: 0, ny: 0 };
 
-  // Grid pass: one head pose across all 13 dots, give or take a fidget.
+  // grid pass: one head pose across all 13 dots, give or take a fidget.
   const grid = [];
   for (const t of TARGETS) {
     for (let k = 0; k < 30; k++) {
@@ -375,7 +375,7 @@ const TARGETS = [
     }
   }
 
-  // Sway capture, matching CONFIG.gaze.swayDots: a "full" dot sweeps rotation
+  // sway capture, matching config.gaze.swaydots: a "full" dot sweeps rotation
   // then translation one axis at a time (mirrors the on-screen instruction:
   // "left, right, up, down, lean in, lean back" - moving them together would
   // make the columns collinear and ridge would split the credit arbitrarily),
@@ -416,23 +416,23 @@ const TARGETS = [
   ];
 
   const gridOnly = fitGazeModel(grid, 'iris');
-  // Old shape: centre + a single full off-axis dot (what the app shipped with
-  // before this test's regression). Fewer independent directions to estimate
+  // old shape: centre + a single full off-axis dot (what the app shipped with
+  // before this test's regression). fewer independent directions to estimate
   // the axis*head gradient from.
   const withOldSway = fitGazeModel(
     [...grid, ...fullSway(CENTRE, 72), ...fullSway(TARGETS[12], 72)],
     'iris',
   );
-  // Current shape: one full centre dot + four rotation-only corner dots, near
-  // where the word tiles actually sit (see CONFIG.gaze.swayDots).
+  // current shape: one full centre dot + four rotation-only corner dots, near
+  // where the word tiles actually sit (see config.gaze.swaydots).
   const withCornerSway = fitGazeModel(
     [...grid, ...fullSway(CENTRE, 72), ...CORNERS.flatMap((c) => cornerSway(c, 42))],
     'iris',
   );
 
-  // Now the user shifts: leans right and down, laptop nudged. Kept modest on
-  // purpose: a bigger move saturates COMPENSATOR_Z_CLAMP, which caps how wrong
-  // the uncompensated model is allowed to look and would flatter it here. This
+  // now the user shifts: leans right and down, laptop nudged. kept modest on
+  // purpose: a bigger move saturates compensator_z_clamp, which caps how wrong
+  // the uncompensated model is allowed to look and would flatter it here. this
   // is a shift you would not even notice making.
   const moved = { yaw: 0.09, pitch: 0.06, nx: 0.012, ny: 0.010 };
   const meanErrAfterMove = (m) => {
@@ -472,30 +472,30 @@ const TARGETS = [
 
 /* ---------------- implicit recalibration corrects post-calibration drift --- */
 /*
- * The user's report this time: two other testers "just could not get it",
- * with the cursor "stalling and going in circles in one area". The sway pass
+ * the user's report this time: two other testers "just could not get it",
+ * with the cursor "stalling and going in circles in one area". the sway pass
  * (previous test) fixes the case where the model was never given evidence
- * about head movement at all. This is the *other* half of the same complaint:
+ * about head movement at all. this is the *other* half of the same complaint:
  * even a well-calibrated model is a snapshot of one moment, and a real
  * session drifts past it - shifting in the seat, the laptop getting nudged,
- * twenty minutes passing. WebGazer.js (recalibrates from clicks) and
- * Microsoft's EyeO gaze-typing work (recalibrates from confirmed key
+ * twenty minutes passing. webgazer.js (recalibrates from clicks) and
+ * microsoft's eyeo gaze-typing work (recalibrates from confirmed key
  * selections) both correct exactly this by feeding confirmed interactions
  * back into the model.
  *
- * `GazeEstimator.recordImplicitCalibration` does this for a dwell-fire: the
+ * `gazeestimator.recordimplicitcalibration` does this for a dwell-fire: the
  * frames leading up to a fired word tile become a new, low-weight calibration
- * sample at that tile's centre (CONFIG.gaze.implicitCalibration.weight - kept
- * in sync with WEIGHT below by hand, since importing the estimator here would
- * pull in core/config.ts's `import.meta.env.BASE_URL`, which is Vite-only and
- * not defined under plain Node). This test exercises the same underlying
- * mechanism - `fitGazeModel` combining full-weight explicit samples with
+ * sample at that tile's centre (config.gaze.implicitcalibration.weight - kept
+ * in sync with weight below by hand, since importing the estimator here would
+ * pull in core/config.ts's `import.meta.env.base_url`, which is vite-only and
+ * not defined under plain node). this test exercises the same underlying
+ * mechanism - `fitgazemodel` combining full-weight explicit samples with
  * lower-weight implicit ones - that method is a thin wrapper around.
  */
 {
   const W = 1440, H = 900, K = 6000;
   const A_YAW = 0.35, A_PITCH = 0.35, B_NOSE = 1.2;
-  const WEIGHT = 0.35; // keep in sync with CONFIG.gaze.implicitCalibration.weight
+  const WEIGHT = 0.35; // keep in sync with config.gaze.implicitcalibration.weight
 
   const featuresFor = (t, head) => {
     const gx = (t.x - W / 2) / K - A_YAW * head.yaw - B_NOSE * head.nx;
@@ -511,8 +511,8 @@ const TARGETS = [
     ];
   };
 
-  // Explicit capture: the 13-dot grid plus a sway pass, all at the pose the
-  // user calibrated at (H0 = still). Same shape as a real calibration.
+  // explicit capture: the 13-dot grid plus a sway pass, all at the pose the
+  // user calibrated at (h0 = still). same shape as a real calibration.
   const H0 = { yaw: 0, pitch: 0, nx: 0, ny: 0 };
   const explicit = [];
   for (const t of TARGETS) {
@@ -526,7 +526,7 @@ const TARGETS = [
     }
   }
 
-  // Eight ring-like word-tile positions, distinct from TARGETS, to fire on.
+  // eight ring-like word-tile positions, distinct from targets, to fire on.
   const RING = Array.from({ length: 8 }, (_, i) => {
     const a = -Math.PI / 2 + (i * Math.PI * 2) / 8;
     return { x: W / 2 + Math.cos(a) * 420, y: H / 2 + Math.sin(a) * 260 };
@@ -534,7 +534,7 @@ const TARGETS = [
 
   const before = fitGazeModel(explicit, 'iris');
 
-  // The user settles into a new position after calibrating - a shift small
+  // the user settles into a new position after calibrating - a shift small
   // enough nobody would notice making it.
   const DRIFTED = { yaw: 0.10, pitch: 0.07, nx: 0.014, ny: 0.011 };
 
@@ -549,9 +549,9 @@ const TARGETS = [
 
   const beforeDrift = errAt(before, RING, DRIFTED);
 
-  // Four dwell-fires' worth of implicit samples: real evidence that the user
-  // is now at DRIFTED, recorded at four of the eight ring positions (the
-  // words they happened to pick). Held-out evaluation below uses the other
+  // four dwell-fires' worth of implicit samples: real evidence that the user
+  // is now at drifted, recorded at four of the eight ring positions (the
+  // words they happened to pick). held-out evaluation below uses the other
   // four, so this measures generalisation, not memorisation of the exact
   // fired tiles.
   const firedAt = [RING[0], RING[2], RING[4], RING[6]];
@@ -579,20 +579,20 @@ const TARGETS = [
 
 /* ------------------------ head mode needs a vertical axis to exist --------- */
 /*
- * Reported: "head tracking is only good for left and right - if I tilt my head
+ * reported: "head tracking is only good for left and right - if i tilt my head
  * up it does not go up at all".
  *
- * This is not a solver bug. A user following dots with their eyes turns their
+ * this is not a solver bug. a user following dots with their eyes turns their
  * head side to side a little and nods essentially not at all, so pitch arrives
  * with no variance and there is nothing for the vertical axis to be fitted
- * from. Both halves are asserted: with pitch variance the vertical axis works,
+ * from. both halves are asserted: with pitch variance the vertical axis works,
  * and without it the axis is genuinely dead - which is why calibration now runs
  * a sway pass and warns when the head did not move.
  */
 {
   const W = 1440, H = 900;
-  // vGain scales *all* vertical head movement - pitch and vertical nose
-  // translation together. Setting it to zero is the reported symptom exactly:
+  // vgain scales *all* vertical head movement - pitch and vertical nose
+  // translation together. setting it to zero is the reported symptom exactly:
   // a capture in which the head never moved up or down at all.
   const build = (vGain) => {
     const out = [];
@@ -625,14 +625,14 @@ const TARGETS = [
     'px   no vertical head movement:', vSpan(frozen).toFixed(0), 'px',
   );
   assert.ok(vSpan(nods) > 450, `head mode has no vertical axis: ${vSpan(nods).toFixed(0)}px`);
-  // The negative control: this is the reported symptom, reproduced on demand.
+  // the negative control: this is the reported symptom, reproduced on demand.
   assert.ok(vSpan(frozen) < 150, 'frozen pitch should NOT produce a vertical axis');
   console.log('ok  head mode moves vertically when the capture contains pitch');
 }
 
 /* -------------------------------------------- degenerate calibration safe -- */
 {
-  // Every sample identical: X'X is rank 1. Must not produce NaN.
+  // every sample identical: x'x is rank 1. must not produce nan.
   const samples = Array.from({ length: 40 }, () => ({
     features: [0.1, 0.2, 0.3, 0.4, 0.5],
     target: { x: 300, y: 400 },
@@ -641,24 +641,24 @@ const TARGETS = [
   const p = predict(m, [0.1, 0.2, 0.3, 0.4, 0.5]);
   assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y), 'degenerate fit produced NaN');
   assert.ok(Math.abs(p.x - 300) < 1, `expected ~300, got ${p.x}`);
-  // A wildly different input must still be finite and bounded.
+  // a wildly different input must still be finite and bounded.
   const q = predict(m, [9, -9, 9, -9, 9]);
   assert.ok(Number.isFinite(q.x) && Number.isFinite(q.y), 'clamped extrapolation produced NaN');
   console.log('ok  degenerate calibration does not produce NaN');
 }
 
-/* --------------------------------------------------------- One Euro ------- */
+/* --------------------------------------------------------- one euro ------- */
 {
   seed = 12345; // reset so this block does not depend on how much randomness ran above
   const MIN_CUTOFF = 0.9;
   const BETA = 0.012;
   const f = new OneEuroFilter(MIN_CUTOFF, BETA, 1.0);
-  // Constant input -> output pinned to it.
+  // constant input -> output pinned to it.
   let v = 0;
   for (let i = 0; i < 120; i++) v = f.filter(500, i * 16.7);
   assert.ok(Math.abs(v - 500) < 1e-6, `constant input drifted: ${v}`);
 
-  // Noise rejection while "still".
+  // noise rejection while "still".
   const still = new OneEuroFilter(MIN_CUTOFF, BETA, 1.0);
   let maxDev = 0;
   for (let i = 0; i < 200; i++) {
@@ -668,7 +668,7 @@ const TARGETS = [
   console.log('    max deviation under +-4px noise:', maxDev.toFixed(2), 'px');
   assert.ok(maxDev < 3, `filter passed too much jitter: ${maxDev}`);
 
-  // Step response: must converge, i.e. it is not so smooth it never arrives.
+  // step response: must converge, i.e. it is not so smooth it never arrives.
   const step = new OneEuroFilter(MIN_CUTOFF, BETA, 1.0);
   let out = 0;
   for (let i = 0; i < 60; i++) out = step.filter(0, i * 16.7);
