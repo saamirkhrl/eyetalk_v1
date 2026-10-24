@@ -1,0 +1,36 @@
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Note: public/models/ and public/mediapipe-wasm/ are intentionally tracked (~26 MB).
+# The deploy builds straight from the repo with no fetch step, so ignoring them would
+# break the deploy and the zero-third-party-request guarantee.

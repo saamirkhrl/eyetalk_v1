@@ -1,0 +1,781 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   design tokens. tailwind v4 reads @theme and emits utilities for each entry,
+   so `bg-ink-900` / `text-accent-400` / `shadow-glow` below are real classes.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-ink-950: #06080f;
+  --color-ink-900: #0b0f1a;
+  --color-ink-850: #10162a;
+  --color-ink-800: #151d33;
+  --color-ink-700: #1e2942;
+  --color-ink-600: #2b3856;
+
+  --color-accent-300: #7dd3fc;
+  --color-accent-400: #38bdf8;
+  --color-accent-500: #0ea5e9;
+  --color-accent-600: #0284c7;
+
+  --color-glow: #a3e635;
+  --color-warn: #fbbf24;
+  --color-danger: #f87171;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --shadow-glow: 0 0 0 1px rgb(56 189 248 / 0.25), 0 12px 48px -12px rgb(56 189 248 / 0.45);
+  --shadow-tile: 0 18px 40px -24px rgb(0 0 0 / 0.9);
+
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop: pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* fired once when a tile commits, so the whole board reads as "that fired". */
+@keyframes tile-fire {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(163 230 53 / 0.75);
+  }
+  45% {
+    transform: scale(1.09);
+    box-shadow: 0 0 0 22px rgb(163 230 53 / 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(163 230 53 / 0);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * calibration instruction bubble. the user's fovea is pinned to the dot by
+ * instruction, so text anywhere else on screen (the top status panel) is only
+ * ever seen in blurry peripheral vision - which is exactly why "move your
+ * head" got missed. this sits right next to the dot instead, and bobs because
+ * peripheral vision is far more sensitive to motion than to static text.
+ */
+@keyframes cal-bubble-bob {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+[data-bubble] {
+  animation: cal-bubble-bob 1.7s ease-in-out infinite;
+}
+
+[data-bubble][data-pos='below'] {
+  top: 100%;
+  margin-top: 1.25rem;
+}
+
+[data-bubble][data-pos='above'] {
+  bottom: 100%;
+  margin-bottom: 1.25rem;
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(1200px 700px at 12% -10%, rgb(14 165 233 / 0.16), transparent 60%),
+      radial-gradient(900px 600px at 105% 110%, rgb(163 230 53 / 0.1), transparent 55%),
+      var(--color-ink-950);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* no text selection anywhere: a stray drag
+     leaves a blue selection box across the board. */
+  #app {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  ::selection {
+    background: rgb(56 189 248 / 0.35);
+  }
+}
+
+@utility mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* component utilities. declared with @utility (not @layer components) so they
+   can be composed with @apply and used with variants. */
+@utility screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-6 py-3
+    text-sm font-semibold tracking-wide transition-all duration-200 outline-none;
+}
+
+@utility btn-primary {
+  @apply btn bg-accent-500 text-ink-950 hover:bg-accent-400 hover:shadow-glow active:scale-[0.98];
+}
+
+@utility btn-ghost {
+  @apply btn border border-ink-600 bg-ink-850/70 text-slate-300 hover:border-accent-500/60
+    hover:text-white active:scale-[0.98];
+}
+
+@utility panel {
+  @apply rounded-2xl border border-ink-700/80 bg-ink-900/70 backdrop-blur-xl;
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-ink-600 bg-ink-850/80 px-3
+    py-1 text-xs font-medium tracking-wide text-slate-300;
+}
+
+/* the gaze cursor sits above everything and must never eat pointer events. */
+#gaze-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  will-change: transform;
+  transform: translate3d(-200px, -200px, 0);
+}
+
+.tile-fired {
+  animation: tile-fire 0.5s ease-out;
+}
+
+/*
+ * every control in the app sets `outline-none` so the dwell ring is the only
+ * thing drawing on a tile. that left keyboard users tabbing blind through ten
+ * identical circles, so focus is drawn back here: `button:focus-visible` beats
+ * both `.ld-cta` and the `outline-none` utility on specificity, and it only
+ * ever paints for a keyboard.
+ */
+button:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   landing screen. namespaced under .ld so none of it can reach the board.
+   the display face is a system stack on purpose: a webfont would mean a
+   third-party request, which the whole project is built to avoid.
+   --------------------------------------------------------------------------- */
+.ld {
+  --ld-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display',
+    'Segoe UI', system-ui, sans-serif;
+  /* warm white against the cool ground - the temperature gap is the point. */
+  --ld-warm: #f2efe9;
+  --ld-mute: #7d8a9f;
+  --ld-line: rgb(120 150 190 / 0.14);
+  overflow: hidden;
+}
+
+/*
+ * everything fits one viewport: the three steps are the point of the page and
+ * must not sit below the fold. sizes are clamped against vh as well as vw, so a
+ * short laptop window shrinks the type and demos instead of overflowing.
+ */
+.ld-scroll {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1.25rem, 3.5vh, 3.25rem);
+  width: min(1180px, 100%);
+  margin-inline: auto;
+  padding: clamp(1rem, 3.5vh, 3rem) clamp(1.25rem, 5vw, 4rem);
+}
+
+/* hero ------------------------------------------------------------------- */
+.ld-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: stretch;
+  min-height: 0;
+}
+
+@media (min-width: 940px) {
+  .ld-hero {
+    grid-template-columns: 0.94fr 1.06fr;
+  }
+
+  /*
+   * two-column hero: the grid spans the lede exactly - wordmark top to the
+   * bottom of the start ring. the row is sized by the lede, and the field
+   * stretches into it, so no fixed height can drift out of sync. the field
+   * takes the wider column: it is the thing that explains what the product
+   * does, and the lede is four short lines.
+   */
+  .ld-field {
+    height: 100%;
+  }
+}
+
+
+.ld-mark {
+  font-family: var(--ld-display);
+  font-size: clamp(2.5rem, min(9vw, 10vh), 7rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+  color: var(--ld-warm);
+  text-wrap: balance;
+  margin: 0;
+}
+
+.ld-mark span {
+  color: var(--color-accent-400);
+}
+
+.ld-copy {
+  max-width: 46ch;
+  margin: clamp(0.75rem, 2vh, 1.5rem) 0 0;
+  font-size: clamp(0.9375rem, min(1.4vw, 2vh), 1.1875rem);
+  line-height: 1.6;
+  color: var(--ld-mute);
+}
+
+.ld-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: clamp(1rem, 3vh, 2.5rem);
+}
+
+/* the cta is a dwell target, not a button-shaped rectangle. */
+.ld-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.125rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.ld-cta-ring {
+  width: clamp(64px, 9vh, 96px);
+  height: clamp(64px, 9vh, 96px);
+  flex: none;
+  overflow: visible;
+}
+
+.ld-cta-track,
+.ld-cta-fill {
+  fill: none;
+  stroke-width: 2;
+}
+
+.ld-cta-track {
+  stroke: var(--color-ink-600);
+}
+
+.ld-cta-fill {
+  stroke: var(--color-accent-400);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.ld-cta[data-dwell='fired'] .ld-cta-fill {
+  stroke: var(--color-glow);
+}
+
+.ld-cta-dot {
+  fill: var(--color-accent-400);
+  opacity: 0.5;
+  transform-origin: center;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.ld-cta:hover .ld-cta-dot,
+.ld-cta:focus-visible .ld-cta-dot {
+  opacity: 0.9;
+  transform: scale(1.15);
+}
+
+.ld-cta[data-dwell='fired'] .ld-cta-dot {
+  fill: var(--color-glow);
+  opacity: 1;
+}
+
+.ld-cta:focus-visible .ld-cta-track {
+  stroke: var(--color-accent-400);
+}
+
+.ld-cta-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.ld-cta-text b {
+  font-family: var(--ld-display);
+  font-size: clamp(1.25rem, 3vh, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ld-warm);
+}
+
+.ld-cta-text em {
+  font-style: normal;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--ld-mute);
+}
+
+
+/*
+ * the camera has to be named before start is pressed, not after: a permission
+ * dialog arriving with no warning is the one moment this page can lose a user's
+ * trust, and privacy is the product's whole position.
+ */
+/* live field ------------------------------------------------------------- */
+.ld-field {
+  position: relative;
+  border: 1px solid var(--ld-line);
+  border-radius: 14px;
+  background: var(--color-ink-900);
+  padding: 0.75rem;
+  height: clamp(150px, 30vh, 320px);
+}
+
+/*
+ * absolutely positioned on purpose: the canvas carries an intrinsic size and
+ * the draw code writes canvas.width from its own measured rect, so in flow
+ * that measurement feeds back into the row height through the resizeobserver.
+ * the size must be stated, not `auto` - a canvas is a replaced element, so
+ * `width: auto` resolves to the intrinsic size and drops the right/bottom
+ * insets, and the backing-store write then grows it every observer tick.
+ */
+.ld-field canvas {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: block;
+  width: calc(100% - 1.5rem);
+  height: calc(100% - 1.5rem);
+  border-radius: 8px;
+}
+
+
+/* steps ------------------------------------------------------------------ */
+.ld-steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 0 0 auto;
+}
+
+@media (min-width: 620px) {
+  .ld-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.ld-step {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.25rem, 0.8vh, 0.5rem);
+  padding: clamp(0.875rem, 2.2vh, 1.75rem);
+  border: 1px solid var(--ld-line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(21 29 51 / 0.5), rgb(11 15 26 / 0.5));
+}
+
+.ld-demo {
+  display: grid;
+  place-items: center;
+  height: clamp(72px, 13vh, 132px);
+  padding: 8px;
+  margin-bottom: clamp(0.625rem, 1.8vh, 1.25rem);
+  border-radius: 10px;
+  background: rgb(6 8 15 / 0.55);
+}
+
+/* the dot field is the box: it fills it rather than floating in the middle. */
+.ld-demo:has(.d-dots) {
+  padding: 10px;
+}
+
+.ld-step-n {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.ld-step-t {
+  margin: 0;
+  font-family: var(--ld-display);
+  font-size: clamp(1.125rem, 2.6vh, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ld-warm);
+}
+
+.ld-step-b {
+  margin: 0;
+  font-size: clamp(0.8125rem, 1.7vh, 0.9375rem);
+  line-height: 1.55;
+  color: var(--ld-mute);
+}
+
+/* step demos ------------------------------------------------------------- */
+/*
+ * eighteen dots on a full 6x3 field, filling the box. a lattice with holes in it
+ * reads as clutter rather than as a grid, and the count is the real one either
+ * way, so the field stays even and the scan carries the sequence.
+ */
+.d-dots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.d-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-ink-600);
+  animation: d-scan 6.2s linear infinite;
+  animation-delay: calc(var(--i) * 0.3s);
+}
+
+/* the five sway dots: same scan, lime, because the instruction inverts there. */
+.d-dots i.d-sway {
+  animation-name: d-scan-sway;
+}
+
+@keyframes d-scan {
+  0%,
+  9% {
+    background: var(--color-accent-400);
+    box-shadow: 0 0 0 5px rgb(56 189 248 / 0.16);
+    transform: scale(1.35);
+  }
+  14%,
+  100% {
+    background: var(--color-ink-600);
+    box-shadow: 0 0 0 0 rgb(56 189 248 / 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes d-scan-sway {
+  0%,
+  9% {
+    background: var(--color-glow);
+    box-shadow: 0 0 0 5px rgb(163 230 53 / 0.16);
+    transform: scale(1.35) translateX(3px);
+  }
+  4% {
+    transform: scale(1.35) translateX(-3px);
+  }
+  14%,
+  100% {
+    background: var(--color-ink-600);
+    box-shadow: 0 0 0 0 rgb(163 230 53 / 0);
+    transform: scale(1);
+  }
+}
+
+.d-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.d-ring svg {
+  width: 88px;
+  height: 88px;
+  overflow: visible;
+}
+
+.d-ring-track,
+.d-ring-fill {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.d-ring-track {
+  stroke: var(--color-ink-700);
+}
+
+.d-ring-fill {
+  stroke: var(--color-accent-400);
+  stroke-linecap: round;
+  stroke-dasharray: 207.35;
+  stroke-dashoffset: 207.35;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  animation: d-fill 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes d-fill {
+  0% {
+    stroke-dashoffset: 207.35;
+    stroke: var(--color-accent-400);
+  }
+  62% {
+    stroke-dashoffset: 0;
+    stroke: var(--color-accent-400);
+  }
+  70%,
+  88% {
+    stroke-dashoffset: 0;
+    stroke: var(--color-glow);
+  }
+  100% {
+    stroke-dashoffset: 207.35;
+    stroke: var(--color-glow);
+    opacity: 0;
+  }
+}
+
+.d-ring-word {
+  position: absolute;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #cfd8e4;
+}
+
+.d-say {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.d-chip {
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--color-ink-600);
+  font-size: 0.8125rem;
+  color: #cfd8e4;
+  opacity: 0;
+  animation: d-chip 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.45s);
+}
+
+@keyframes d-chip {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  16%,
+  82% {
+    opacity: 1;
+    transform: none;
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+.d-bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  margin-left: 2px;
+}
+
+.d-bars i {
+  width: 3px;
+  height: 30%;
+  border-radius: 999px;
+  background: var(--color-glow);
+  animation: d-bar 1.1s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.09s);
+}
+
+@keyframes d-bar {
+  0%,
+  100% {
+    height: 22%;
+    opacity: 0.5;
+  }
+  50% {
+    height: 100%;
+    opacity: 1;
+  }
+}
+
+/* staged entrance. reduced motion gets the finished state immediately. */
+@media (prefers-reduced-motion: no-preference) {
+  .ld-mark,
+  .ld-copy,
+  .ld-cta-row,
+  .ld-field,
+  .ld-step {
+    animation: fade-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .ld-mark {
+    animation-delay: 0.06s;
+  }
+  .ld-copy {
+    animation-delay: 0.12s;
+  }
+  .ld-cta-row {
+    animation-delay: 0.18s;
+  }
+  .ld-field {
+    animation-delay: 0.1s;
+  }
+  .ld-step:nth-child(1) {
+    animation-delay: 0.26s;
+  }
+  .ld-step:nth-child(2) {
+    animation-delay: 0.32s;
+  }
+  .ld-step:nth-child(3) {
+    animation-delay: 0.38s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d-dots i,
+  .d-ring-fill,
+  .d-chip,
+  .d-bars i {
+    animation: none;
+  }
+  .d-chip {
+    opacity: 1;
+  }
+  .d-ring-fill {
+    stroke-dashoffset: 52;
+  }
+}
+
+.ld-toosmall {
+  max-width: 34ch;
+  margin: clamp(1rem, 3vh, 2.5rem) 0 0;
+  padding: 0.875rem 1rem;
+  border: 1px solid rgb(251 191 36 / 0.35);
+  border-radius: 10px;
+  background: rgb(251 191 36 / 0.08);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-warn);
+}
+
+.ld-toosmall[hidden] {
+  display: none;
+}
+
+/*
+ * phones are not a supported target - see the notice in landing.ts. the page
+ * still has to read properly for whoever lands on one, so the preview and the
+ * step demos step aside and the column is allowed to scroll.
+ */
+@media (max-width: 700px) and (pointer: coarse) {
+  .ld {
+    overflow-y: auto;
+  }
+
+  .ld-scroll {
+    justify-content: flex-start;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .ld-field,
+  .ld-steps {
+    display: none;
+  }
+}
+
+/*
+ * very short windows (a laptop with devtools docked, a split screen): the hero
+ * copy is the first thing to go, because the three steps carry the same
+ * information in less height.
+ */
+@media (max-height: 700px) and (max-width: 939px) {
+  .ld-copy {
+    display: none;
+  }
+}
+
+@media (max-height: 560px) and (pointer: fine) {
+  .ld-copy {
+    display: none;
+  }
+}
