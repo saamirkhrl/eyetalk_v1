@@ -1,0 +1,23 @@
+{
+  "name": "eyetalk",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node tests/math.test.mjs && node tests/vocab.test.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "@mediapipe/tasks-vision": "^1.0.1"
+  }
+}
