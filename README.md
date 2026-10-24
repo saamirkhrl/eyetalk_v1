@@ -151,6 +151,17 @@ Claude, Anthropic's AI assistant, to help with:
 - **Wrap-up.** Once everything was done, Claude helped structure the project, clean up what
   was left, and put together the GitHub repo and this README.
 
+## Open-source credits
+
+EyeTalk is built on these open-source projects:
+
+- [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe) (Google, Apache 2.0): face and iris landmarks
+- [Transformers.js](https://github.com/huggingface/transformers.js) (Hugging Face, Apache 2.0) and ONNX Runtime Web (Microsoft, MIT): on-device language model
+- [Qwen3-0.6B](https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX) and [Qwen2.5-0.5B-Instruct](https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct) (Alibaba Qwen team, Apache 2.0): sentence generation
+- [Vite](https://vite.dev) and [Tailwind CSS](https://tailwindcss.com) (MIT): build and styling
+
+The ridge regression, One Euro filter, calibration, and dwell selection are my own code.
+
 ## License
 
 MIT
