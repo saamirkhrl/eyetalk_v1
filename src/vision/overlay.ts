@@ -28,7 +28,7 @@ export class LandmarkOverlay {
     label.className =
       'pointer-events-none absolute top-2 left-2 rounded-md bg-ink-950/70 px-2 py-0.5 ' +
       'text-[10px] font-medium tracking-widest text-accent-300 uppercase';
-    label.textContent = 'tracking';
+    label.textContent = 'what the ai sees';
     this.root.style.position = 'relative';
     this.root.appendChild(label);
 
@@ -47,13 +47,20 @@ export class LandmarkOverlay {
   draw(frame: FaceFrame | null): void {
     if (!this.visible) return;
     const { ctx, canvas } = this;
+    // match the cam's aspect so the face isn't squished (720p is 16:9, not 4:3).
+    const vw = this.video.videoWidth;
+    const vh = this.video.videoHeight;
+    if (vw && vh) {
+      const fitH = Math.round((canvas.width * vh) / vw);
+      if (canvas.height !== fitH) canvas.height = fitH;
+    }
     const w = canvas.width;
     const h = canvas.height;
 
     ctx.clearRect(0, 0, w, h);
     if (this.video.readyState >= 2) {
       ctx.drawImage(this.video, 0, 0, w, h);
-      ctx.fillStyle = 'rgba(6,8,15,0.45)';
+      ctx.fillStyle = 'rgba(6,8,15,0.25)';
       ctx.fillRect(0, 0, w, h);
     }
 

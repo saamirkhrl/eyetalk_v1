@@ -85,7 +85,7 @@ together, so there is no mode to pick.
 | Remove a picked word | - | click the selected word |
 | Recalibrate | - | `C` (caregiver) |
 | Stop speech | - | `S` (caregiver) |
-| Landmark debug overlay | - | `D` (caregiver) |
+| Hide / show the camera view | - | `D` (caregiver) |
 | Cancel a selection in progress | shut both eyes briefly | - |
 
 Every tile is also clickable, so the whole app works with just a mouse if the camera is

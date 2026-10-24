@@ -198,8 +198,8 @@ export class App {
 
   private startMouseMode(): void {
     this.mouseMode = true;
-    // overlay was just a setup aid, board stays clean by deafult.
-    this.overlay.setVisible(CONFIG.ui.debugOverlayDefault);
+    // no camera means nothing to show, so skip the empty panel.
+    this.overlay.setVisible(CONFIG.ui.debugOverlayDefault && this.tracker.video.readyState >= 2);
     toast('Mouse mode: the cursor follows your pointer', 'info', 3000);
     this.showBoard();
   }
@@ -284,7 +284,6 @@ export class App {
         void this.runSetup();
         return;
       }
-      // the overlay was a setup aid; the board should be clean by default.
       this.overlay.setVisible(CONFIG.ui.debugOverlayDefault);
       this.showBoard();
     });
@@ -299,7 +298,7 @@ export class App {
     const wrap = document.createElement('div');
     wrap.className = 'screen';
 
-    // only holds the debug overlay (D key), hidden by default. same clamp
+    // holds the camera / landmark view (D key toggles it). same clamp
     // `layoutring` reserves so it never sits over a tile.
     const right = document.createElement('div');
     right.className = 'pointer-events-auto absolute top-6 right-6 z-20 flex flex-col gap-3';

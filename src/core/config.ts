@@ -350,9 +350,9 @@ export const CONFIG = {
 
   /* -------------------------------------------------------------------- misc */
   ui: {
-    /** landmark overlay starts off; calibration turns it on so the user can
-     *  confirm tracking, then it goes back off for the clean board. */
-    debugOverlayDefault: false,
+    /** live camera + landmark view stays on the board so the user (and anyone
+     *  watching) can see what the tracker sees. d still hides it. */
+    debugOverlayDefault: true,
     /** how long the spoken sentence is held in the centre before the board
      *  empties. below ~1s it reads as a flicker; above ~2.5s it delays the
      *  next word for a user whose selections are already expensive. */

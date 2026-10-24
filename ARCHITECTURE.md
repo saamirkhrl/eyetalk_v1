@@ -16,7 +16,7 @@ settings menu or undo tile. Caregiver-only controls live on the keyboard:
 | Back to the category ring | dwell on `Back to categories` | click |
 | Speak / Clear / Back | dwell on a bottom action tile | click |
 | Remove a picked word | - | click any concept chip |
-| Landmark debug overlay | - | `D` |
+| Hide / show the camera view | - | `D` |
 | Recalibrate | - | `C` |
 | Stop speech | - | `S` |
 | Cancel a selection in progress | shut both eyes briefly | - |
