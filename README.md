@@ -138,6 +138,15 @@ categories.
 Curious how the gaze tracking, calibration, and fallback system actually work? See
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## How this was built
+
+I programmed most of EyeTalk myself, including the core infrastructure and the eye tracking.
+I used Claude, Anthropic's AI assistant, for two things:
+
+- **Testing.** Claude went over the code, ran the builds and test suite, and checked that the
+  app runs on other machines, not just mine.
+- **The website.** Claude helped build the site itself and clean up the UI.
+
 ## License
 
 MIT
