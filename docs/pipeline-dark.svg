@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 612" width="1240" height="612" role="img" aria-label="EyeTalk pipeline: webcam, MediaPipe face landmarks, gaze features, ridge regression, One Euro filter and dwell selection pick words; an on-device language model turns them into sentences that the Web Speech API speaks.">
+<!-- system fonts only, nothing gets fetched -->
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5" fill="none" stroke="#5f6b84" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="aha" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1.5 8.5 5 1 8.5" fill="none" stroke="#f48050" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1240" height="612" rx="18" fill="#0b0f1a"/>
+<text x="36" y="46" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#f2efe9" text-anchor="start">How a look becomes a spoken sentence</text>
+<text x="1204" y="46" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="500" fill="#97a3b8" text-anchor="end">no server  /  no account  /  no camera data leaves the device</text>
+<rect x="24" y="72" width="1192" height="474" rx="16" fill="none" stroke="#33405f" stroke-width="1.3" stroke-dasharray="5 5"/>
+<rect x="42" y="61" width="232" height="22" rx="11" fill="#0b0f1a"/>
+<g transform="translate(47.0 62.0) scale(0.8333333333333334)" fill="none" stroke="#f48050" color="#f48050" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+<text x="72" y="76" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" font-weight="700" fill="#fcc0a2" text-anchor="start" letter-spacing="1.2">RUNS ENTIRELY IN YOUR BROWSER</text>
+<text x="64" y="112" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" font-weight="600" fill="#6f7b90" text-anchor="start" letter-spacing="1.2">GAZE LOOP  /  EVERY CAMERA FRAME</text>
+<rect x="64" y="128" width="164" height="132" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="80" y="144" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(88.0 152.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></g>
+<text x="212" y="158" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">01</text>
+<text x="80" y="210" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Webcam</text>
+<text x="80" y="230" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">any built-in or USB</text>
+<text x="80" y="246" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">camera, no extra kit</text>
+<rect x="254" y="128" width="164" height="132" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="270" y="144" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(278.0 152.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></g>
+<text x="402" y="158" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">02</text>
+<text x="270" y="210" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Face landmarks</text>
+<text x="270" y="230" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">MediaPipe, 478 points</text>
+<text x="270" y="246" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">on GPU or CPU</text>
+<path d="M231 194.0 L251 194.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<rect x="444" y="128" width="164" height="132" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="460" y="144" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(468.0 152.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></g>
+<text x="592" y="158" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">03</text>
+<text x="460" y="210" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Gaze features</text>
+<text x="460" y="230" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">iris offset, head pose,</text>
+<text x="460" y="246" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">head position</text>
+<path d="M421 194.0 L441 194.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<rect x="634" y="128" width="164" height="132" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="650" y="144" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(658.0 152.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20 21 5"/><circle cx="6" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="9.5" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="9.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r="1.3" fill="currentColor" stroke="none"/><circle cx="18" cy="5.5" r="1.3" fill="currentColor" stroke="none"/></g>
+<text x="782" y="158" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">04</text>
+<text x="650" y="210" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Ridge regression</text>
+<text x="650" y="230" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">fit from a 20-dot</text>
+<text x="650" y="246" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">calibration, outlier-proof</text>
+<path d="M611 194.0 L631 194.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<rect x="824" y="128" width="164" height="132" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="840" y="144" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(848.0 152.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l1.6-4 1.6 7 1.6-9 1.6 8 1.6-4"/><path d="M12.5 12c2.2-3.2 4.3-3.2 6.5 0 .9 1.3 1.9 1.6 3 1"/></g>
+<text x="972" y="158" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">05</text>
+<text x="840" y="210" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">One Euro filter</text>
+<text x="840" y="230" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">smooths when still,</text>
+<text x="840" y="246" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">stays fast on a saccade</text>
+<path d="M801 194.0 L821 194.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<rect x="1014" y="128" width="164" height="132" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="1030" y="144" width="36" height="36" rx="10" fill="#2a1a17"/>
+<circle cx="1048" cy="162" r="10" fill="none" stroke="#7a3e27" stroke-width="2.2"/>
+<path d="M1048 152 A10 10 0 1 1 1038 162" fill="none" stroke="#f48050" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="1048" cy="162" r="3.2" fill="#f48050"/>
+<text x="1162" y="158" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">06</text>
+<text x="1030" y="210" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Dwell select</text>
+<text x="1030" y="230" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">300 ms arm, then a</text>
+<text x="1030" y="246" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">900 ms ring fill</text>
+<path d="M991 194.0 L1011 194.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<path d="M336.0 260 V278 Q336.0 286 344.0 286 H1052 Q1060 286 1060 278 V264" fill="none" stroke="#f48050" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#aha)"/>
+<rect x="472.0" y="275" width="452" height="22" rx="11" fill="#0b0f1a" stroke="#7a3e27"/>
+<text x="698.0" y="290" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#fcc0a2" text-anchor="middle">blink scores: a blink pauses the ring, eyes shut over 400 ms cancels</text>
+<text x="64" y="376" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="10.5" font-weight="600" fill="#6f7b90" text-anchor="start" letter-spacing="1.2">LANGUAGE  /  ONCE PER MESSAGE</text>
+<path d="M1132 260 V342 Q1132 352 1122 352 H54 Q44 352 44 362 V446.0 Q44 456.0 54 456.0 H61" fill="none" stroke="#5f6b84" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="484.0" y="341" width="208" height="22" rx="11" fill="#0b0f1a"/>
+<text x="588.0" y="356" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#97a3b8" text-anchor="middle">ring fills: the word is picked</text>
+<rect x="64" y="392" width="190" height="128" rx="14" fill="#121a2e" stroke="#26314c"/>
+<text x="238" y="422" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">07</text>
+<text x="80" y="422" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Picked words</text>
+<rect x="80" y="440" width="66" height="30" rx="8" fill="#2a1a17" stroke="#7a3e27"/>
+<text x="113.0" y="460" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fcc0a2" text-anchor="middle">where</text>
+<rect x="154" y="440" width="56" height="30" rx="8" fill="#2a1a17" stroke="#7a3e27"/>
+<text x="182.0" y="460" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fcc0a2" text-anchor="middle">mom</text>
+<text x="80" y="492" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">mixed across any</text>
+<text x="80" y="508" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">of the 6 categories</text>
+<path d="M257 456.0 L289 456.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<rect x="292" y="392" width="318" height="128" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="308" y="408" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(316.0 416.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></g>
+<text x="452" y="422" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">08</text>
+<text x="308" y="468" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">On-device LLM</text>
+<text x="308" y="488" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">Transformers.js worker</text>
+<text x="308" y="504" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="400" fill="#6f7b90" text-anchor="start">Qwen3-0.6B / Qwen2.5-0.5B</text>
+<rect x="488" y="406" width="108" height="100" rx="10" fill="#0f1627" stroke="#26314c" stroke-dasharray="3 3"/>
+<text x="500" y="428" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="10" font-weight="700" fill="#6f7b90" text-anchor="start" letter-spacing="1">FALLBACK</text>
+<text x="500" y="450" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#e6e9f0" text-anchor="start">templates take</text>
+<text x="500" y="466" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#e6e9f0" text-anchor="start">over if the model</text>
+<text x="500" y="482" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#e6e9f0" text-anchor="start">is slow, missing</text>
+<text x="500" y="498" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="500" fill="#e6e9f0" text-anchor="start">or garbled</text>
+<path d="M613 456.0 L645 456.0" stroke="#5f6b84" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+<rect x="648" y="392" width="290" height="128" rx="14" fill="#121a2e" stroke="#26314c"/>
+<text x="922" y="422" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">09</text>
+<text x="664" y="422" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Pick a sentence</text>
+<rect x="662" y="436" width="262" height="22" rx="7" fill="#2a1a17" stroke="#f48050"/>
+<text x="674" y="451.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="650" fill="#fcc0a2" text-anchor="start">Where is my mom?</text>
+<circle cx="908" cy="447" r="6" fill="none" stroke="#7a3e27" stroke-width="1.8"/>
+<path d="M908 441 A6 6 0 1 1 902 447" fill="none" stroke="#f48050" stroke-width="2" stroke-linecap="round"/>
+<rect x="662" y="462" width="262" height="22" rx="7" fill="#0f1627" stroke="#26314c"/>
+<text x="674" y="477.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#97a3b8" text-anchor="start">Where are we? I want my mom.</text>
+<rect x="662" y="488" width="262" height="22" rx="7" fill="#0f1627" stroke="#26314c"/>
+<text x="674" y="503.5" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#97a3b8" text-anchor="start">Can you call my mom?</text>
+<path d="M941 456.0 L973 456.0" stroke="#f48050" stroke-width="1.6" fill="none" marker-end="url(#aha)"/>
+<rect x="976" y="392" width="190" height="128" rx="14" fill="#121a2e" stroke="#26314c"/>
+<rect x="992" y="408" width="36" height="36" rx="10" fill="#1b2541"/>
+<g transform="translate(1000.0 416.0) scale(0.8333333333333334)" fill="none" stroke="#7dd3fc" color="#7dd3fc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/></g>
+<text x="1150" y="422" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11" font-weight="500" fill="#6f7b90" text-anchor="end">10</text>
+<text x="992" y="468" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="650" fill="#f2efe9" text-anchor="start">Spoken aloud</text>
+<text x="992" y="488" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">Web Speech API,</text>
+<text x="992" y="504" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">built into the browser</text>
+<g transform="translate(37.0 567.0) scale(0.8333333333333334)" fill="none" stroke="#6f7b90" color="#6f7b90" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></g>
+<text x="64" y="582" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#97a3b8" text-anchor="start">Only network use: a one-time model download (about 570 MB on WebGPU, 786 MB on WASM), then the browser caches it.</text>
+<text x="1204" y="582" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="12" font-weight="500" fill="#6f7b90" text-anchor="end">TypeScript  /  Vite</text>
+</svg>

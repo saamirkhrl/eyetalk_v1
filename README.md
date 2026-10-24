@@ -12,9 +12,18 @@ runs entirely in your browser. It is built for people who cannot speak or type -
 example people living with ALS, cerebral palsy, or locked-in conditions - and for the
 caregivers and families who talk with them. You build sentences by looking at words.
 
-![EyeTalk stack: webcam to MediaPipe face landmarks to the gaze model (ridge regression, One
-Euro filter, dwell selection) to Transformers.js running on WebGPU or WASM, then out to the
-Web Speech API](docs/pipeline.png)
+<p align="center">
+  <img src="docs/board.png" alt="The EyeTalk board: a ring of six categories, the dwell ring filling on Needs, and the picked words where and mom in the centre" width="49%" />
+  <img src="docs/sentences.png" alt="The sentence screen: Where is my mom?, Where are we? I want my mom., Where are you going? Can you call my mom?, and the plain words" width="49%" />
+</p>
+<p align="center"><sub>Pick words by holding your gaze until the ring fills, then pick the sentence to speak.</sub></p>
+
+## How it works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/pipeline-dark.svg" />
+  <img src="docs/pipeline-light.svg" width="100%" alt="EyeTalk pipeline. Gaze loop, every camera frame: webcam, MediaPipe face landmarks, gaze features (iris offset, head pose, head position), ridge regression fitted from a 20-dot calibration, One Euro filter, dwell selection; blink scores pause or cancel the dwell. Language, once per message: picked words go to an on-device LLM in a Transformers.js worker (templates take over if it is slow, missing or garbled), you pick a sentence, and the Web Speech API speaks it. Everything runs in the browser; the only network use is a one-time model download." />
+</picture>
 
 ## Why this matters
 
