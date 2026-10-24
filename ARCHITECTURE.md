@@ -5,7 +5,9 @@ each design decision. For a quick overview and how to run the project, see `READ
 
 ## Controls
 
-Every operator control has a gaze route, so nothing important needs a keyboard:
+The board is kept bare on purpose, so the user is not overstimulated: the word ring, the
+selected words in the centre, and a few large action tiles. There is no HUD, history column,
+settings menu or undo tile. Caregiver-only controls live on the keyboard:
 
 | Control | By gaze | Also |
 | --- | --- | --- |
@@ -13,26 +15,18 @@ Every operator control has a gaze route, so nothing important needs a keyboard:
 | Pick a word | dwell on a word tile in the ring | click |
 | Back to the category ring | dwell on `Back to categories` | click |
 | Speak / Clear / Back | dwell on a bottom action tile | click |
-| Remove the last word | dwell on `Undo last` | click, or click any concept chip |
-| Cursor source (iris vs head pose) | Settings menu | `M` |
-| Landmark debug overlay | Settings menu | `D` |
-| Recalibrate | Settings menu | `C` |
-| Stop speech | Settings menu | `S` |
+| Remove a picked word | - | click any concept chip |
+| Landmark debug overlay | - | `D` |
+| Recalibrate | - | `C` |
+| Stop speech | - | `S` |
 | Cancel a selection in progress | shut both eyes briefly | - |
 | Cancel calibration | shut both eyes and hold ~2 s | `Esc` |
 
-The HUD is read-only. It used to carry buttons for cursor mode, overlay and recalibrate,
-which is a route the user this is built for does not have - the Settings tiles are the
-canonical copy, and the duplicate cost 240 px of board width that the word ring wanted.
+The cursor is always `iris` mode (iris + head pose), which already follows the head when
+the head moves and the eyes when only the eyes move, so there is no mode switch. The old
+Settings menu, HUD and `Undo last` tile were removed as clutter; a wrong word is fixed with
+`Clear`, or by finishing the message.
 
-`Undo last` only appears while there is something to undo. Magnetic targets (`snapPx: 48`)
-make an occasional wrong tile unavoidable, and the word is spoken the moment it fires; the
-only previous remedy was `Clear`, which threw away the words the user got right along with
-the one they did not.
-
-`Settings` is an action tile on the board; it opens a panel of large tiles in the centre of
-the screen, which is the most accurate region of the gaze estimate - calibration only
-samples the inset 10-90 % region, so anything near a viewport edge is extrapolated.
 Calibration itself is the one screen with no gaze targets (there is no fitted model yet),
 which is why the eyes-closed hold exists.
 
@@ -249,8 +243,8 @@ saturates the cursor at the edge of the calibrated region rather than sending it
 10.6 px), while ±0.05 eye-widths of actual eye movement must still span more than 700 px (it
 spans 1310 px).
 
-Both cursor modes are fit from the **same** capture, so the `M` key (or the Settings tile) swaps
-between them instantly with no recalibration:
+Both cursor modes can be fit from the **same** capture. The board only uses `iris`; `head`
+stays in the estimator but has no UI route:
 
 - `iris` - iris mean + head rotation, translation and distance (7 features). Precise, the
   default.
@@ -670,7 +664,7 @@ Small things that look odd and are load-bearing:
 - **Nothing in `#app` is text-selectable.** A stray drag leaves a blue selection rectangle
   across the board.
 - **The ring's radius and tile size are solved together.** `hitTest` works off cached rects
-  with no occlusion pass, so a tile that slides under the history or HUD column still
+  with no occlusion pass, so a tile that slides under the debug overlay column still
   charges and fires behind it - a wrong word spoken because of nothing but a window size.
   The side and bottom reserves are therefore hard: when the viewport cannot afford a full
   ring the tiles shrink instead. The radius also has to clear 1.35 tiles, because eight
@@ -684,7 +678,7 @@ Small things that look odd and are load-bearing:
   went under the HUD. Two hard-coded numbers that have to agree will eventually disagree.
 - **Concept chips are clickable but deliberately not dwell targets.** The centre is where
   the user rests their gaze to read what they have picked; a dwell target there would
-  delete a word for the crime of being looked at. `Undo last` is the gaze route.
+  delete a word for the crime of being looked at. `Clear` is the gaze route.
 - **`button:focus-visible` is declared unlayered**, so it beats both `.ld-cta` and Tailwind's
   `outline-none` utility on specificity. Every tile sets `outline-none` so the dwell ring is
   the only thing drawing on it, which left a keyboard user tabbing blind through ten

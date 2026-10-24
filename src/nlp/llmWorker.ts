@@ -1,15 +1,32 @@
 
 import {
+  env,
   pipeline,
   TextStreamer,
   type ProgressInfo,
   type TextGenerationPipeline,
 } from '@huggingface/transformers';
+import asyncifyMjs from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
+import asyncifyWasm from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
+import plainMjs from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
+import plainWasm from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import { CONFIG } from '../core/config.ts';
 import { buildMessages, isDegenerate, parseCandidates } from './prompt.ts';
 import type { WorkerIn, WorkerOut } from '../core/types.ts';
 
 const post = (m: WorkerOut) => self.postMessage(m);
+
+// self-host the onnx runtime. transformers points it at jsdelivr by default,
+// which the prod csp blocks (llm failed on vercel, fine on localhost). keeps
+// transformers' own pick of build (plain on safari, asyncify elsewhere).
+const ortWasm = env.backends.onnx.wasm;
+if (ortWasm && typeof ortWasm.wasmPaths === 'object') {
+  const abs = (u: string) => new URL(u, self.location.href).href;
+  const asyncify = String(ortWasm.wasmPaths.mjs ?? '').includes('asyncify');
+  ortWasm.wasmPaths = asyncify
+    ? { mjs: abs(asyncifyMjs), wasm: abs(asyncifyWasm) }
+    : { mjs: abs(plainMjs), wasm: abs(plainWasm) };
+}
 
 type Backend = 'webgpu' | 'wasm';
 
