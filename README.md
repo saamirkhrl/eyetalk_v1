@@ -140,12 +140,16 @@ Curious how the gaze tracking, calibration, and fallback system actually work? S
 
 ## How this was built
 
-I programmed most of EyeTalk myself, including the core infrastructure and the eye tracking.
-I used Claude, Anthropic's AI assistant, for two things:
+I designed and planned EyeTalk and programmed the main blueprint of the app myself. I used
+Claude, Anthropic's AI assistant, to help with:
 
-- **Testing.** Claude went over the code, ran the builds and test suite, and checked that the
-  app runs on other machines, not just mine.
+- **Review.** Claude went over my code, checked it for errors, and made it more robust.
+- **Performance.** Claude helped optimize the app so it runs better on slower computers.
+- **Testing.** Claude ran the builds and test suite and checked that the app runs on other
+  machines, not just mine.
 - **The website.** Claude helped build the site itself and clean up the UI.
+- **Wrap-up.** Once everything was done, Claude helped structure the project, clean up what
+  was left, and put together the GitHub repo and this README.
 
 ## License
 
