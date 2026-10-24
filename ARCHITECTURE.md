@@ -127,8 +127,10 @@ vendored into `public/`, so face tracking makes no third-party request at all.
 
 Two passes.
 
-**Grid pass** - thirteen dots: a 3x3 grid inset to 10%/50%/90% of the viewport, plus four edge
-midpoints. Each dot waits 900 ms for the eye to land before recording, then captures up to 30
+**Grid pass** - fifteen dots: a 3x3 grid inset to 10%/50%/90% of the viewport, plus four edge
+midpoints, plus one on each bottom-corner action tile (Clear and Speak). The action row sits below
+the 90% row, so without those two dots the cursor could only reach Clear by extrapolation and
+slid along a diagonal edge short of it. Each dot waits 900 ms for the eye to land before recording, then captures up to 30
 frames. Frames where the face is lost or the user is mid-blink are discarded. The order is
 shuffled so consecutive dots are far apart - a real saccade lands cleanly, whereas adjacent
 dots invite the user to drift their gaze and smear the fixation across the settle window.
@@ -178,9 +180,9 @@ Calibration reports the yaw/pitch spread it observed, and the app says so plainl
 sat still through the sway pass - the fitted model looks perfectly healthy either way, so
 there is no other way to tell.
 
-The landing page states the real numbers - eighteen dots, about forty seconds, and the fact
-that the last five ask for head movement - and its step-1 animation runs eighteen dots on a
-6x3 field with the sway five scanning differently.
+The landing page states the real numbers - twenty dots, about forty-five seconds, and the fact
+that the last five ask for head movement - and its step-1 animation runs twenty dots on a
+5x4 field with the sway five scanning differently.
 
 The fit is hand-written, no ML library:
 
@@ -216,7 +218,7 @@ reassuring and useless.
 
 Ridge rather than plain least squares because the columns are badly collinear (over a narrow
 range `z` and `z²` are nearly proportional) and because the *effective* sample count is the
-number of dots, not the number of frames. 19 free parameters against 13 grid dots (18 once the
+number of dots, not the number of frames. 19 free parameters against 15 grid dots (20 once the
 sway dots are counted, but those trade off translation-vs-rotation motion, not fresh screen
 positions) is interpolation, not fitting; adding to the diagonal lifts every eigenvalue and
 shrinks the weights along the directions the data barely constrains.

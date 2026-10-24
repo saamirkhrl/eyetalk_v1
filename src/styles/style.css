@@ -510,14 +510,14 @@ button:focus-visible {
 
 /* step demos ------------------------------------------------------------- */
 /*
- * eighteen dots on a full 6x3 field, filling the box. a lattice with holes in it
+ * twenty dots on a full 5x4 field, filling the box. a lattice with holes in it
  * reads as clutter rather than as a grid, and the count is the real one either
  * way, so the field stays even and the scan carries the sequence.
  */
 .d-dots {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(4, 1fr);
   place-items: center;
   width: 100%;
   height: 100%;
@@ -528,7 +528,7 @@ button:focus-visible {
   height: 7px;
   border-radius: 999px;
   background: var(--color-ink-600);
-  animation: d-scan 6.2s linear infinite;
+  animation: d-scan 6.8s linear infinite;
   animation-delay: calc(var(--i) * 0.3s);
 }
 

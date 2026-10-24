@@ -57,7 +57,7 @@ export class LandingScreen {
           ${stepCard(
             '1',
             'Calibrate',
-            'Eighteen dots, one at a time, about forty seconds. The last five ask you ' +
+            'Twenty dots, one at a time, about forty-five seconds. The last five ask you ' +
               'to move your head while you keep looking at the dot.',
             demoDots(),
           )}
@@ -147,18 +147,18 @@ function stepCard(n: string, title: string, body: string, demo: string): string 
 }
 
 /**
- * eighteen dots on a full 6x3 field - the real count, with no gaps in the grid.
+ * twenty dots on a full 5x4 field - the real count, with no gaps in the grid.
  * visit order wanders so consecutive dots stay far apart, which is what the
  * real pass does: adjacent dots invite the user to drift instead of saccade.
  * the last five are the sway pass, where the instruction inverts.
  */
 const DOT_ORDER: ReadonlyArray<readonly [number, number]> = [
-  [0, 0], [2, 3], [0, 5], [2, 0], [1, 2], [0, 2], [2, 5],
-  [1, 0], [0, 4], [2, 2], [1, 5], [0, 1], [2, 4],
-  [1, 3], [1, 1], [0, 3], [2, 1], [1, 4],
+  [0, 0], [3, 4], [0, 4], [3, 0], [1, 2], [0, 2], [3, 3],
+  [1, 0], [2, 4], [3, 1], [0, 3], [2, 0], [1, 4], [3, 2], [0, 1],
+  [2, 2], [1, 1], [2, 3], [1, 3], [2, 1],
 ];
-const COLS = 6;
-const SWAY_FROM = 13;
+const COLS = 5;
+const SWAY_FROM = 15;
 
 function demoDots(): string {
   const order = new Map(DOT_ORDER.map(([r, c], i) => [r * COLS + c, i]));
