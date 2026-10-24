@@ -10,7 +10,10 @@ export class HistoryPanel {
     this.root = document.createElement('div');
     this.root.className = 'panel flex w-full flex-col p-3 shadow-tile animate-fade-up';
     this.root.innerHTML = `
-      <div class="mb-2 text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase">
+      <div class="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em]
+           text-slate-500 uppercase">
+        <img src="/logo-dark.svg" alt="" aria-hidden="true" draggable="false"
+             class="pointer-events-none h-3.5 w-auto select-none" />
         Conversation
       </div>
       <div data-list class="flex max-h-[42vh] flex-col gap-2 overflow-y-auto pr-1"></div>`;

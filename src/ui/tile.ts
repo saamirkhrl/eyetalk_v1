@@ -51,7 +51,7 @@ export class Tile {
     this.ring.setAttribute('cy', '50');
     this.ring.setAttribute('r', String(RING_R));
     this.ring.setAttribute('fill', 'none');
-    this.ring.setAttribute('stroke', 'var(--color-glow)');
+    this.ring.setAttribute('stroke', 'var(--color-brand-orange)');
     this.ring.setAttribute('stroke-width', '5');
     this.ring.setAttribute('stroke-linecap', 'round');
     this.ring.setAttribute('stroke-dasharray', String(CIRCUMFERENCE));
@@ -88,7 +88,7 @@ export class Tile {
       const bar = document.createElement('span');
       bar.dataset.bar = '';
       bar.className =
-        'absolute bottom-0 left-0 h-1 w-0 rounded-full bg-glow transition-none';
+        'absolute bottom-0 left-0 h-1 w-0 rounded-full bg-brand-orange transition-none';
       this.el.appendChild(bar);
     }
 
@@ -108,7 +108,7 @@ export class Tile {
       this.el.dataset.state = state;
       this.el.classList.toggle('ring-2', state !== 'idle');
       this.el.classList.toggle('ring-accent-400/70', state === 'hover' || state === 'arming');
-      this.el.classList.toggle('ring-glow/80', state === 'committing');
+      this.el.classList.toggle('ring-brand-orange/80', state === 'committing');
       this.el.style.transform =
         state === 'committing' ? 'scale(1.05)' : state === 'idle' ? '' : 'scale(1.02)';
       this.ring.style.opacity = state === 'committing' ? '1' : '0';

@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/logo-wordmark-dark.svg" />
+    <img src="public/logo-wordmark.svg" alt="EyeTalk" width="360" />
+  </picture>
+</p>
+
 # EyeTalk
 
 A gaze- and head-controlled AAC (augmentative and alternative communication) board that

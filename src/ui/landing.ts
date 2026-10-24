@@ -1,5 +1,6 @@
 
 import { CONFIG } from '../core/config.ts';
+import { CORNER_LOGO } from './brand.ts';
 
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -21,7 +22,7 @@ export class LandingScreen {
       <div class="ld-scroll">
         <header class="ld-hero">
           <div class="ld-lede">
-            <h1 class="ld-mark">Eye<span>Talk</span></h1>
+            <h1 class="ld-mark"><img class="ld-logo" src="/logo-dark.svg" alt="" draggable="false" />EyeTalk</h1>
             <p class="ld-copy">
               A board of words you drive with your eyes. Rest your gaze on one, hold it,
               and the words you chose come back as a spoken sentence.
@@ -383,7 +384,7 @@ export class SetupScreen {
   constructor(tasks: SetupTask[]) {
     this.root = document.createElement('div');
     this.root.className = 'screen items-center justify-center px-6';
-    this.root.innerHTML = `
+    this.root.innerHTML = `${CORNER_LOGO}
       <div class="w-full max-w-lg animate-fade-up">
         <h2 class="text-2xl font-semibold tracking-tight text-white">Getting set up</h2>
         <p class="mt-1 text-sm text-slate-500">
