@@ -13,6 +13,20 @@ const EDGE_MIDPOINTS: ReadonlyArray<[number, number]> = [
   [0.9, 0.3],
 ];
 
+/**
+ * the clear / speak tiles sit below the 0.9 row, in the bottom corners. without
+ * a dot there the cursor only reaches them by extrapolation, and it'd slide
+ * along a diagonal edge short of clear. centres match board.ts: the action row
+ * is `bottom-6 px-6`, tiles ~74px tall, clear ~144px wide, speak ~165px.
+ */
+function actionRowDots(w: number, h: number): Point[] {
+  const y = h - 24 - 37;
+  return [
+    { x: 24 + 72, y },
+    { x: w - 24 - 82, y },
+  ];
+}
+
 interface CalibDot {
   at: Point;
   /** sway dots ask for head movement instead of stillness. */
@@ -68,7 +82,7 @@ export class CalibrationScreen {
             </div>
           </div>
           <div data-counter class="mono rounded-lg bg-ink-800 px-3 py-1.5 text-sm
-               font-semibold text-accent-300">1 / 18</div>
+               font-semibold text-accent-300">1 / 20</div>
         </div>
       </div>
 
@@ -140,6 +154,7 @@ export class CalibrationScreen {
     } else {
       ordered = grid;
     }
+    ordered.push(...actionRowDots(w, h));
 
     this.points = ordered.map((at) => ({ at, sway: false, swayFull: false }));
     for (const { at: [fx, fy], full } of CONFIG.gaze.swayDots) {
