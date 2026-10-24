@@ -131,7 +131,6 @@ categories.
   patterns and can read stiffly ("Thank you, I want the nurse.").
 - Nothing persists across a reload: the fitted calibration and current conversation are
   lost, so calibration needs to be redone.
-- No way yet to re-speak a sentence from the conversation panel.
 
 ---
 

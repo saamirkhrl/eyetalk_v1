@@ -47,8 +47,8 @@ the vocabulary did not shrink any tile. The category ring uses the same layout w
 tiles, which only spaces them further apart.
 
 - **Picked words persist across rings.** The selection lives in `App`, not in the ring, so
-  opening another category or going back to the categories leaves it untouched. Only Speak,
-  Clear and Undo (or clicking a selected word) change it. Speak and Clear also return the
+  opening another category or going back to the categories leaves it untouched. Only Speak
+  and Clear (or clicking a selected word) change it. Speak and Clear also return the
   board to the category ring, so the next message starts from the top.
 - **Moving between rings restarts the compose window**, the same way picking a word does.
   Without that, the 2.4 s `composeGraceMs` window would run out on the way from one
