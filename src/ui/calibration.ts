@@ -3,6 +3,7 @@ import { CONFIG, sidePanelWidthCss } from '../core/index.ts';
 import type { FaceFrame, Point, RawCalibrationSample } from '../core/types.ts';
 import { toMetrics } from '../vision/features.ts';
 import { cueCalibrationDone, cueDotArrived } from '../audio/sound.ts';
+import { CORNER_LOGO } from './brand.ts';
 
 const GRID = [0.1, 0.5, 0.9];
 const EDGE_MIDPOINTS: ReadonlyArray<[number, number]> = [
@@ -55,7 +56,7 @@ export class CalibrationScreen {
     this.root = document.createElement('div');
     this.root.className = 'screen items-center justify-center bg-ink-950';
 
-    this.root.innerHTML = `
+    this.root.innerHTML = `${CORNER_LOGO}
       <div class="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-8">
         <div class="panel flex items-center gap-4 px-5 py-3 animate-fade-up">
           <div>

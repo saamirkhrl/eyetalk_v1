@@ -499,8 +499,8 @@ export class Board {
         chip.title = `Remove "${c}"`;
         chip.setAttribute('aria-label', `Remove ${c}`);
         chip.className =
-          'animate-pop cursor-pointer rounded-xl border border-accent-500/40 bg-accent-500/10 ' +
-          'px-4 py-2 text-lg font-semibold text-accent-300 transition-colors ' +
+          'animate-pop cursor-pointer rounded-xl border border-brand-orange/40 bg-brand-orange/10 ' +
+          'px-4 py-2 text-lg font-semibold text-brand-orange-200 transition-colors ' +
           'hover:border-danger/50 hover:text-danger';
         chip.textContent = c;
         chip.addEventListener('click', () => this.cb.onRemoveConcept(i));

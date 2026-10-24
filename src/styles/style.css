@@ -17,6 +17,13 @@
   --color-accent-500: #0ea5e9;
   --color-accent-600: #0284c7;
 
+  /* brand colors, straight from the logo. navy is for light surfaces only:
+     on the ink grounds it's ~2:1, so text there stays light. */
+  --color-brand-navy: #103b6d;
+  --color-brand-orange: #f48050;
+  /* orange tint for text on dark, keeps contrast >= the old accent-300 */
+  --color-brand-orange-200: #fcc0a2;
+
   --color-glow: #a3e635;
   --color-warn: #fbbf24;
   --color-danger: #f87171;
@@ -282,8 +289,18 @@ button:focus-visible {
   margin: 0;
 }
 
-.ld-mark span {
-  color: var(--color-accent-400);
+.ld-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.16em;
+}
+
+/* icon half of the wordmark, sized to the line box so the hero doesn't grow */
+.ld-logo {
+  height: 0.86em;
+  width: auto;
+  flex: none;
+  pointer-events: none;
 }
 
 .ld-copy {
@@ -334,7 +351,7 @@ button:focus-visible {
 }
 
 .ld-cta-fill {
-  stroke: var(--color-accent-400);
+  stroke: var(--color-brand-orange);
   stroke-linecap: round;
   transform: rotate(-90deg);
   transform-origin: center;
@@ -576,7 +593,7 @@ button:focus-visible {
 }
 
 .d-ring-fill {
-  stroke: var(--color-accent-400);
+  stroke: var(--color-brand-orange);
   stroke-linecap: round;
   stroke-dasharray: 207.35;
   stroke-dashoffset: 207.35;
@@ -588,11 +605,11 @@ button:focus-visible {
 @keyframes d-fill {
   0% {
     stroke-dashoffset: 207.35;
-    stroke: var(--color-accent-400);
+    stroke: var(--color-brand-orange);
   }
   62% {
     stroke-dashoffset: 0;
-    stroke: var(--color-accent-400);
+    stroke: var(--color-brand-orange);
   }
   70%,
   88% {

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" width="120" height="96" role="img" aria-label="EyeTalk">
+  <!-- eye + speech bubble tail. orange ring is the dwell fill, the dark quarter is what's left -->
+  <path fill="#f2efe9" fill-rule="evenodd" d="M3.6 46c0-2.5.8-4.4 2-6.4C17 21 36 2.75 60 2.75S103 21 114.4 39.6c1.2 2 2 3.9 2 6.4s-.8 4.4-2 6.4C103 71 84 89.25 60 89.25S17 71 5.6 52.4c-1.2-2-2-3.9-2-6.4ZM17.2 46c0-1 .4-2 1-3C27 28 42 11.25 60 11.25S93 28 101.8 43c.6 1 1 2 1 3s-.4 2-1 3C93 64 78 80.75 60 80.75S27 64 18.2 49c-.6-1-1-2-1-3Z"/>
+  <path fill="#f2efe9" d="M20 64 10.4 86.2Q8.9 90.4 13 88.6L35 78Z"/>
+  <path d="M86.25 46A26.25 26.25 0 1 1 60 19.75" fill="none" stroke="#f48050" stroke-width="7.5"/>
+  <path d="M60 19.75A26.25 26.25 0 0 1 86.25 46" fill="none" stroke="#f2efe9" stroke-width="7.5"/>
+  <circle cx="60" cy="19.75" r="3.75" fill="#f2efe9"/>
+  <circle cx="86.25" cy="46" r="3.75" fill="#f48050"/>
+  <circle cx="60" cy="46" r="12" fill="#f2efe9"/>
+</svg>
