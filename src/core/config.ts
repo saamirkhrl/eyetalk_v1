@@ -1,8 +1,5 @@
 /** central tuning surface. */
 
-/** which signal drives the cursor. */
-export type CursorMode = 'iris' | 'head';
-
 /** vite's base path. guarded so the vocabulary tests can import this file under plain node. */
 const BASE_URL = import.meta.env?.BASE_URL ?? '/';
 
@@ -30,101 +27,7 @@ export const CONFIG = {
 
   /* -------------------------------------------------------------------- gaze */
   gaze: {
-    /**
-     * 'iris' uses iris-offset + head pose (more precise, more calibration-drift).
-     * 'head' uses head pose + nose position only (coarser, far more stable, and
-     * works for users whose eyes are hard to track). switchable at runtime.
-     */
-    defaultCursorMode: 'iris' as CursorMode,
-
-    /**
-     * the ridge penalty is not a constant here - it is chosen per calibration
-     * by leave-one-target-out cross-validation over a log grid (see
-     * `gaze/ridge.ts`, default_lambda_grid). a fixed lambda that suits a clean,
-     * still capture is far too weak for a noisy one, and too weak is exactly
-     * what produces a model that hits all nine dots and predicts nonsense
-     * everywhere in between.
-     */
-
-    /**
-     * include the four edge midpoints as well as the 3x3 grid, for 13 dots
-     * instead of 9. the design row has 14 columns, and dots - not frames - are
-     * the independent constraints, so 9 of them leaves the fit badly
-     * underdetermined and forces cross-validation to over-shrink. the extra
-     * four cost about 9 seconds and materially improve accuracy near the
-     * screen edges, which is where the outer word tiles live. set false to
-     * return to a plain 3x3.
-     */
-    useEdgeMidpoints: true,
-
-    /**
-     * the sway pass: after the grid, a few dots where the user keeps their gaze
-     * fixed and deliberately moves their head around.
-     *
-     * this is the fix for "it works right after calibrating, then i shift in my
-     * seat or nudge the laptop and it stops". the grid alone only ever shows
-     * the model one head position, so it has no way to learn that head
-     * translation should not move the cursor - it silently treats the one head
-     * pose it saw as a constant of the universe. the sway pass gives it many
-     * head poses against a *fixed* screen target, which is precisely the
-     * evidence needed to fit the compensation terms (see
-     * `gaze/featurespec.ts`, `compensators`).
-     *
-     * five dots, not one, and not uniform:
-     *
-     * - one **full** dot at centre: eyes there see close to zero gaze offset,
-     *   so the axis*head cross terms get almost no signal from it and it is
-     *   instead what teaches the *additive* part of the correction (translate
-     *   the head, the required gaze estimate shifts by roughly a constant).
-     *   it sweeps all four compensator axes - yaw, pitch, and both nose
-     *   translations.
-     * - four **corner** dots, near where the word tiles actually sit on the
-     *   ring. off-centre gaze means these frames give the axis*yaw / axis*pitch
-     *   cross terms real signal instead of one, forcing the *gradient* of the
-     *   correction (does it change depending on where you are already looking)
-     *   to be fit from four independent directions rather than extrapolated
-     *   from a single off-axis sample. rotation-only (no lean prompt) because
-     *   that gradient is the perspective-dependent part; translation is not,
-     *   and the centre dot already covers it.
-     *
-     * simulated on the synthetic capture in `tests/math.test.mjs`: after the
-     * user moves, a single off-axis sway point leaves 32.5 px of error and four
-     * corner points bring that to 21.3 px. set to [] to skip the pass entirely.
-     */
-    swayDots: [
-      { at: [0.5, 0.5], full: true },
-      { at: [0.15, 0.15], full: false },
-      { at: [0.85, 0.15], full: false },
-      { at: [0.85, 0.85], full: false },
-      { at: [0.15, 0.85], full: false },
-    ] as ReadonlyArray<{ at: readonly [number, number]; full: boolean }>,
-    /** capture window for the full sway dot (4 motions: yaw, pitch, nose.x, nose.y). */
-    swayCaptureMsFull: 3400,
-    /** frames captured for the full sway dot. not near-duplicates like a grid
-     *  dot - each one is a genuinely different head pose - so more is worth it. */
-    swaySamplesFull: 70,
-    /** capture window for a corner sway dot (2 motions: yaw, pitch only). */
-    swayCaptureMsPartial: 1800,
-    /** frames captured for a corner sway dot. */
-    swaySamplesPartial: 42,
-
-    /** frames captured per calibration dot, after the settle delay. */
-    samplesPerPoint: 30,
-    /**
-     * how long the dot takes to glide from the previous position to the next.
-     * a dot that teleports has to be re-found; a dot that travels can be
-     * followed by smooth pursuit, so the eye is already on target when it
-     * stops. carved out of `dotsettlems`, not added to it, so calibration takes
-     * no longer than before - the settle window that remains after the dot
-     * lands is `dotsettlems - dottravelms`.
-     */
-    dotTravelMs: 450,
-    /** time from the dot starting to move until we start recording. */
-    dotSettleMs: 900,
-    /** time spent recording each dot. */
-    dotCaptureMs: 1100,
-
-    /* one euro filter. see gaze/oneeuro.ts for the derivation. */
+    /* one euro filter, in screen px. see gaze/oneeuro.ts for the derivation. */
     oneEuro: {
       /** cutoff (hz) when the eye is still. lower = steadier, more lag. */
       minCutoff: 0.9,
@@ -140,38 +43,106 @@ export const CONFIG = {
     },
 
     /**
-     * implicit recalibration: every time the user dwell-fires a word tile,
-     * the frames leading up to that fire are folded back into the model as a
-     * new, low-weight calibration sample at that tile's on-screen centre.
+     * implicit recalibration: every confirmed gaze fire (a word, a category,
+     * back to categories) is evidence of where the user was looking, so the
+     * frames just b4 it nudge the pointer's centre (`zero`) toward whatever
+     * would have put the cursor on that tile's centre.
      *
-     * this is the fix for "works right after calibrating, then drifts and
-     * starts circling one spot" over a real session. a one-shot calibration
-     * is a snapshot of one moment; a real user shifts in their seat, the
-     * laptop gets nudged, twenty minutes pass - and a model that never
-     * updates again has no way to track that. webgazer.js (self-calibrates
-     * from clicks) and microsoft's eyeo gaze-typing work (recalibrates from
-     * confirmed key selections) both use exactly this technique for exactly
-     * this reason.
-     *
-     * a dwell-fire is real evidence but noisier evidence than an explicit
-     * calibration dot (the user was reading a word, not told to fixate a
-     * point), so it gets a fraction of a calibration frame's weight rather
-     * than an equal vote - and the huber pass in `gaze/ridge.ts` gives a
-     * genuinely bad one (a mis-fire, a snap-assisted edge case) even less.
+     * a one-shot calibration is a snapshot of one moment; people shift in
+     * their seat and the laptop gets nudged. webgazer.js (clicks) and
+     * microsoft's eyeo gaze typing (confirmed keys) self-correct the same way.
      */
     implicitCalibration: {
       enabled: true,
-      /** how much of a calibration-dot frame's weight one implicit frame gets. */
-      weight: 0.35,
-      /** trailing window of frames pulled in when a tile fires. kept short and
-       *  late in the commit window, when confidence the eyes were actually on
-       *  the tile is highest. */
+      /** trailing window of frames used when a tile fires. short and late in
+       *  the commit window, when the eyes are most surely on the tile. */
       tailMs: 350,
-      /** cap on retained implicit samples (roughly this many recent fires'
-       *  worth of frames). bounded and fifo, so the model tracks where the
-       *  user is *now*, not an ever-growing history. */
-      maxSamples: 70,
+      /** each fire moves `zero` this fraction of the way to the measured
+       *  error. capped per fire by `pointer.maxZeroStepFrac`. */
+      offsetGain: 0.5,
     },
+  },
+
+  /* ----------------------------------------------------------------- pointer */
+  /**
+   * the face pointer (gaze/facepointer.ts). it estimates a direction, not a
+   * pixel: head yaw / pitch from the facial transform matrix plus a scaled
+   * eye-in-head term from the iris offset, both in radians. calibration
+   * finds where "centre" is, a 2x2 map from signal to ring coords, a small
+   * curvature term, and this person's eye gain.
+   */
+  pointer: {
+    /**
+     * radians of gaze per eye-width of iris offset, the default b4 a fit. the
+     * physical value is ~2.5 (a shift of d eye-widths on a ~30 mm eye over a
+     * ~12 mm eyeball is ~2.5*d rad). kept under that on purpose so the head
+     * term dominates for people whose iris tracks poorly (glasses, low lids).
+     * calibration fits a per-user gain from `eyegaingrid` and only overrides
+     * this one when the data clearly says so.
+     */
+    eyeGain: 1.5,
+    /**
+     * +1 when a positive iris.x reads the same screen direction as a positive
+     * yaw (and iris.y as pitch), -1 when opposite. a constant of the pipeline,
+     * not the user: both come from the same image. check the `[gaze] calib
+     * split` line. calibration overrides it only when the data clearly says
+     * otherwise.
+     */
+    eyeSign: 1 as 1 | -1,
+    /** eye gains the calibration fit tries, each with both signs. */
+    eyeGainGrid: [0.5, 1, 1.5, 2, 2.5, 3],
+    /** a measured (gain, sign) beats the config pair only when its residual is
+     *  lower by this fraction (15%) and by `eyefitminabsdifffrac` ring radii. */
+    eyeSignMinRelDiff: 0.15,
+    eyeFitMinAbsDiffFrac: 0.01,
+    /** ridge penalty on the three curvature coefs (p*p, q*q, p*q). keeps the
+     *  bend small unless the dots really ask for it. */
+    curvatureRidge: 0.3,
+    /** smallest centre-to-ring signal change accepted, rad (~1.5 deg). less
+     *  means the user did not follow the dots and the fit would be noise. */
+    minExcursionRad: 0.025,
+    /** one implicit fire's error is capped at this many ring radii per axis
+     *  (1 = the ring edge) b4 `offsetgain` scales it, so a mis-fire can only
+     *  pull zero so far. */
+    maxZeroStepFrac: 0.35,
+    /**
+     * drift guard. the centre text is where a user rests, and a rest that
+     * long is the best evidence of where "centre" currently is. so while the
+     * cursor sits in the centre dead zone for `restrecentrems`, `zero` is
+     * pulled toward the current signal by `restrecentregain` per frame.
+     * ring only (the sentence list has tiles in the middle). cheap and
+     * reversible: set false if it misbehaves.
+     */
+    restRecentre: true,
+    restRecentreMs: 2500,
+    restRecentreGain: 0.02,
+  },
+
+  /* ------------------------------------------------------------- calibration */
+  /**
+   * thirteen dots in ring coords (1 = the ring edge): the centre, the 8 word
+   * tile spots, and 4 inner dots on the cardinals. order and labels live in
+   * gaze/facepointer.ts (`calib_order`).
+   */
+  calibration: {
+    /** radius of the 4 inner dots, ring radii. */
+    innerRingFrac: 0.65,
+    /** dot glide time between positions. a dot that travels can be followed. */
+    dotTravelMs: 400,
+    /** minimum wait from the dot starting to move until capture can start
+     *  (travel included). the first dot teleports, so it gets its own. */
+    settleMs: 500,
+    firstSettleMs: 600,
+    /** arrival gate: capture waits until the pointer signal has held within
+     *  `stillrad` of where the still run began for `stillms`. the run can
+     *  start as soon as the dot lands, so it overlaps the settle. */
+    stillRad: 0.015,
+    stillMs: 150,
+    /** give up waiting for stillness after this long past the settle. */
+    maxWaitMs: 500,
+    /** capture time per dot. the centre is the reference, so it gets more. */
+    centreCaptureMs: 1000,
+    captureMs: 650,
   },
 
   /* ------------------------------------------------------------------- dwell */
@@ -191,22 +162,39 @@ export const CONFIG = {
      */
     exitSlopPx: 34,
     /**
-     * magnetic targets. a gaze estimate is accurate to tens of pixels, not
-     * ones, so requiring the cursor to land strictly inside a tile means the
-     * user has to fight the residual error instead of just looking at the
-     * word. if the cursor is outside every tile but within this distance of
-     * one, we treat it as a hit on that tile.
+     * magnetic targets, for the candidate list and any other target that is not
+     * on the ring (the ring selects by direction, see `ringminradiusfrac`). a
+     * gaze estimate is accurate to tens of pixels, not ones, so requiring the
+     * cursor to land strictly inside a tile means the user has to fight the
+     * residual error instead of just looking at the sentence. if the cursor is
+     * outside every tile but within this distance of one, we treat it as a hit
+     * on that tile.
      *
-     * safe here because the board is a ring with wide gaps: 48 px of snap
-     * cannot bridge to a neighbour. see `snapmarginpx` for the tie-break.
+     * safe there because the tiles have wide gaps: 48 px of snap cannot bridge
+     * to a neighbour. see `snapmarginpx` for the tie-break.
      */
     snapPx: 48,
     /**
      * ...but only if that tile is the nearest by at least this margin.
      * equidistant between two tiles, we snap to neither, so the cursor sitting
-     * in a gap does not flicker between them and reset the dwell ring.
+     * in a gap does not flicker between them and reset the dwell ring. like
+     * `snappx`, only applies off the ring.
      */
     snapMarginPx: 14,
+    /**
+     * ring tiles are picked by direction from the ring centre, not by landing
+     * in a box, so a ~100 px gaze bias cannot push the cursor off a tile. the
+     * centre text is where the gaze rests to read what was picked, so the
+     * inner 55% of the ring radius selects nothing.
+     */
+    ringMinRadiusFrac: 0.55,
+    /**
+     * horizontal reach of the bottom action row. a gaze within this many px
+     * sideways of an action tile (and near the row's height) picks it. kept
+     * short on purpose so a gaze at the bottom-centre, which belongs to the
+     * bottom ring tile, can never fire clear.
+     */
+    actionReachPx: 120,
     /**
      * lock-on: once a target is engaged (hovering, arming, or committing),
      * losing the hit test - to a different target, or to nothing at all -
@@ -237,9 +225,11 @@ export const CONFIG = {
   blink: {
     /** blendshape score above which an eye counts as closed. */
     closedThreshold: 0.45,
-    /** both eyes closed longer than this = intentional cancel gesture.
-     *  involuntary blinks are 100-150 ms, so 400 ms separates them cleanly. */
-    cancelHoldMs: 400,
+    /** both eyes closed longer than this = the deliberate "take me back"
+     *  gesture: drops the dwell in progress and returns to the category ring.
+     *  involuntary blinks are 100-150 ms, so 600 ms separates them cleanly
+     *  and a slow blink no longer trips it. */
+    cancelHoldMs: 600,
     /** after a cancel fires, require the eyes to reopen before another. */
     rearmMs: 250,
     /**

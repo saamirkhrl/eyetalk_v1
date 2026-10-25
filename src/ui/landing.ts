@@ -24,8 +24,8 @@ export class LandingScreen {
           <div class="ld-lede">
             <h1 class="ld-mark"><img class="ld-logo" src="/logo-dark.svg" alt="" draggable="false" />EyeTalk</h1>
             <p class="ld-copy">
-              A board of words you drive with your eyes. Rest your gaze on one, hold it,
-              and the words you chose come back as a spoken sentence.
+              A board of words you drive with your face: turn your head a little toward a
+              word, look at it, hold, and the words you chose come back as a spoken sentence.
             </p>
 
             <div class="ld-cta-row">
@@ -57,15 +57,14 @@ export class LandingScreen {
           ${stepCard(
             '1',
             'Calibrate',
-            'Twenty dots, one at a time, about forty-five seconds. The last five ask you ' +
-              'to move your head while you keep looking at the dot.',
+            'Thirteen dots, about fifteen seconds. Follow each dot with your head and eyes.',
             demoDots(),
           )}
           ${stepCard(
             '2',
             'Look and hold',
-            'Open a category, then rest on a word. The ring closes, the tile fires. Shut ' +
-              'both eyes for a moment to cancel.',
+            'Open a category, then turn toward a word and rest on it. The ring closes, the tile fires. Shut ' +
+              'both eyes for a moment to go back to the categories.',
             demoRing(),
           )}
           ${stepCard(
@@ -147,25 +146,31 @@ function stepCard(n: string, title: string, body: string, demo: string): string 
 }
 
 /**
- * twenty dots on a full 5x4 field - the real count, with no gaps in the grid.
- * visit order wanders so consecutive dots stay far apart, which is what the
- * real pass does: adjacent dots invite the user to drift instead of saccade.
- * the last five are the sway pass, where the instruction inverts.
+ * the real 13 dot layout in the real order: centre, 8 ring dots (far apart
+ * first), then 4 inner on the cardinals at 0.65. ring coords are scaled to an
+ * ellipse filling the box (40% radius), so the scan carries the order.
  */
-const DOT_ORDER: ReadonlyArray<readonly [number, number]> = [
-  [0, 0], [3, 4], [0, 4], [3, 0], [1, 2], [0, 2], [3, 3],
-  [1, 0], [2, 4], [3, 1], [0, 3], [2, 0], [1, 4], [3, 2], [0, 1],
-  [2, 2], [1, 1], [2, 3], [1, 3], [2, 1],
-];
-const COLS = 5;
-const SWAY_FROM = 15;
+const RING_ORDER = [0, 4, 2, 6, 1, 5, 3, 7];
+const INNER_FRAC = 0.65;
+
+function dotPositions(): Array<readonly [number, number]> {
+  const pts: Array<readonly [number, number]> = [[0, 0]];
+  for (const k of RING_ORDER) {
+    const a = ((-90 + k * 45) * Math.PI) / 180;
+    pts.push([Math.cos(a), Math.sin(a)]);
+  }
+  pts.push([INNER_FRAC, 0], [-INNER_FRAC, 0], [0, INNER_FRAC], [0, -INNER_FRAC]);
+  return pts;
+}
 
 function demoDots(): string {
-  const order = new Map(DOT_ORDER.map(([r, c], i) => [r * COLS + c, i]));
-  const cells = Array.from({ length: DOT_ORDER.length }, (_, cell) => {
-    const i = order.get(cell)!;
-    return `<i class="${i >= SWAY_FROM ? 'd-sway' : ''}" style="--i:${i}"></i>`;
-  }).join('');
+  const cells = dotPositions()
+    .map(([u, v], i) => {
+      const x = (50 + u * 40).toFixed(1);
+      const y = (50 + v * 40).toFixed(1);
+      return `<i style="left:${x}%;top:${y}%;animation-delay:${(i * 0.5).toFixed(1)}s"></i>`;
+    })
+    .join('');
   return `<div class="d-dots">${cells}</div>`;
 }
 

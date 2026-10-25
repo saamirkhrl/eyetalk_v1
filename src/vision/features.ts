@@ -1,7 +1,6 @@
 
 import type { FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import type { FaceFrame, FaceMetrics, Point } from '../core/types.ts';
-import type { CursorMode } from '../core/config.ts';
 import { EYE_LEFT, EYE_RIGHT, NOSE_TIP } from './landmarks.ts';
 
 /** decompose the 4x4 facial transformation matrix into yaw / pitch / roll. */
@@ -26,8 +25,8 @@ export function matrixToEuler(data: Float32Array | number[]): {
   };
 }
 
-function blendshape(result: FaceLandmarkerResult, name: string): number {
-  const cats = result.faceBlendshapes?.[0]?.categories;
+function blendshape(result: FaceLandmarkerResult, face: number, name: string): number {
+  const cats = result.faceBlendshapes?.[face]?.categories;
   if (!cats) return 0;
   for (const c of cats) if (c.categoryName === name) return c.score;
   return 0;
@@ -68,10 +67,27 @@ export function toFaceFrame(
   videoH: number,
   t: number,
 ): FaceFrame | null {
-  const lms = result.faceLandmarks?.[0];
-  if (!lms || lms.length < 478) return null;
+  // numfaces is 2 so a bystander can't steal the track: use the biggest
+  // face (widest outer eye corners), which is the one nearest the camera.
+  const faceScale = (l: ReadonlyArray<NormalizedLandmark>) =>
+    Math.hypot(
+      (l[EYE_LEFT.outer]!.x - l[EYE_RIGHT.outer]!.x) * videoW,
+      (l[EYE_LEFT.outer]!.y - l[EYE_RIGHT.outer]!.y) * videoH,
+    ) / videoW;
+  let face = -1;
+  let best = -Infinity;
+  (result.faceLandmarks ?? []).forEach((l, i) => {
+    if (l.length < 478) return;
+    const sc = faceScale(l);
+    if (sc > best) {
+      best = sc;
+      face = i;
+    }
+  });
+  if (face < 0) return null;
+  const lms = result.faceLandmarks[face]!;
 
-  const matrix = result.facialTransformationMatrixes?.[0]?.data;
+  const matrix = result.facialTransformationMatrixes?.[face]?.data;
   const euler = matrix ? matrixToEuler(matrix) : { yaw: 0, pitch: 0, roll: 0 };
 
   return {
@@ -83,30 +99,10 @@ export function toFaceFrame(
     pitch: euler.pitch,
     roll: euler.roll,
     nose: { x: lms[NOSE_TIP]!.x - 0.5, y: lms[NOSE_TIP]!.y - 0.5 },
-    scale:
-      Math.hypot(
-        (lms[EYE_LEFT.outer]!.x - lms[EYE_RIGHT.outer]!.x) * videoW,
-        (lms[EYE_LEFT.outer]!.y - lms[EYE_RIGHT.outer]!.y) * videoH,
-      ) / videoW,
-    blinkLeft: blendshape(result, 'eyeBlinkLeft'),
-    blinkRight: blendshape(result, 'eyeBlinkRight'),
+    scale: best,
+    blinkLeft: blendshape(result, face, 'eyeBlinkLeft'),
+    blinkRight: blendshape(result, face, 'eyeBlinkRight'),
   };
-}
-
-/** build the regression feature vector. */
-export function featureVector(f: FaceMetrics, mode: CursorMode): number[] {
-  if (mode === 'head') {
-    return [f.yaw, f.pitch, f.nose.x, f.nose.y, f.scale];
-  }
-  return [
-    (f.irisLeft.x + f.irisRight.x) / 2,
-    (f.irisLeft.y + f.irisRight.y) / 2,
-    f.yaw,
-    f.pitch,
-    f.nose.x,
-    f.nose.y,
-    f.scale,
-  ];
 }
 
 /** true while both eyes read as shut. */

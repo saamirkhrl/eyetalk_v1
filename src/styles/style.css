@@ -509,32 +509,23 @@ button:focus-visible {
 }
 
 /* step demos ------------------------------------------------------------- */
-/*
- * twenty dots on a full 5x4 field, filling the box. a lattice with holes in it
- * reads as clutter rather than as a grid, and the count is the real one either
- * way, so the field stays even and the scan carries the sequence.
- */
+/* 13 dots (centre, ring, inner) placed inline as % of the box. 4:3 like the board's ring
+   (rx 400, ry 300), centred, so a wide card doesn't squash it flat. the scan carries the order. */
 .d-dots {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  place-items: center;
-  width: 100%;
+  position: relative;
   height: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
 }
 
 .d-dots i {
+  position: absolute;
+  margin: -3.5px 0 0 -3.5px;
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: var(--color-ink-600);
-  animation: d-scan 6.8s linear infinite;
-  animation-delay: calc(var(--i) * 0.3s);
-}
-
-/* the five sway dots: same scan, lime, because the instruction inverts there. */
-.d-dots i.d-sway {
-  animation-name: d-scan-sway;
+  animation: d-scan 6.5s linear infinite;
 }
 
 @keyframes d-scan {
@@ -548,24 +539,6 @@ button:focus-visible {
   100% {
     background: var(--color-ink-600);
     box-shadow: 0 0 0 0 rgb(56 189 248 / 0);
-    transform: scale(1);
-  }
-}
-
-@keyframes d-scan-sway {
-  0%,
-  9% {
-    background: var(--color-glow);
-    box-shadow: 0 0 0 5px rgb(163 230 53 / 0.16);
-    transform: scale(1.35) translateX(3px);
-  }
-  4% {
-    transform: scale(1.35) translateX(-3px);
-  }
-  14%,
-  100% {
-    background: var(--color-ink-600);
-    box-shadow: 0 0 0 0 rgb(163 230 53 / 0);
     transform: scale(1);
   }
 }

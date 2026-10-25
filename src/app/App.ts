@@ -9,20 +9,29 @@ import {
   type Point,
   sidePanelWidthCss,
 } from '../core/index.ts';
-import { GazeCursor, GazeEstimator } from '../gaze/index.ts';
+import {
+  fitPointer,
+  FacePointer,
+  GazeCursor,
+  type PointerFrame,
+  RAD_TO_DEG,
+  signalFor,
+} from '../gaze/index.ts';
 import { fallbackSentences, LlmClient } from '../nlp/index.ts';
 import {
+  AccuracyCheckScreen,
   Board,
   CalibrationScreen,
   DwellController,
   HistoryPanel,
   LandingScreen,
   SetupScreen,
+  solveRingLayout,
   toast,
 } from '../ui/index.ts';
 import { bothEyesClosed, FaceTracker, LandmarkOverlay } from '../vision/index.ts';
 
-type Phase = 'landing' | 'setup' | 'calibrate' | 'board';
+type Phase = 'landing' | 'setup' | 'calibrate' | 'accuracy' | 'board';
 
 export class App {
   private mount: HTMLElement;
@@ -30,7 +39,7 @@ export class App {
 
   private tracker = new FaceTracker();
   private overlay = new LandmarkOverlay(this.tracker.video);
-  private estimator = new GazeEstimator();
+  private pointer = new FacePointer(() => this.pointerFrame());
   private cursor = new GazeCursor();
   private dwell = new DwellController();
   private speaker = new Speaker();
@@ -40,6 +49,7 @@ export class App {
 
   private board: Board;
   private calibration = new CalibrationScreen();
+  private accuracy = new AccuracyCheckScreen();
 
   private concepts: string[] = [];
   private composeTimer = 0;
@@ -72,12 +82,24 @@ export class App {
       onBack: () => this.backToConcepts(),
     });
     this.board.onTargetsChanged(() => this.syncTargets());
+    // the camera panel invites the gaze but is not a tile, so it selects nothing.
+    this.dwell.setExclusions(() => {
+      if (!this.overlay.isVisible()) return [];
+      const r = this.overlay.root.getBoundingClientRect();
+      return r.width > 0 ? [r] : [];
+    });
 
     this.dwell.onFire((id, rect) => this.onDwellFire(id, rect));
     this.dwell.onCancel(() => {
-      toast('Selection cancelled', 'warn', 1400);
       this.cursor.setState('cancelled');
       this.cancelCompose();
+      // the long blink is "take me back": home to the category ring from
+      // wherever the user is. picked words stay, same as back to categories.
+      if (this.phase !== 'board') return;
+      const home = this.board.mode !== 'concepts' || this.board.currentCategory !== null;
+      if (this.board.mode !== 'concepts') this.backToConcepts();
+      this.showCategories();
+      toast(home ? 'Back to categories' : 'Selection cancelled', 'warn', 1400);
     });
     this.dwell.onState((s) => {
       this.dwellCommitting = s === 'committing';
@@ -89,7 +111,12 @@ export class App {
     this.tracker.onFrame((f) => this.onFrame(f));
 
     window.addEventListener('resize', () => {
-      requestAnimationFrame(() => this.dwell.refreshRects());
+      requestAnimationFrame(() => {
+        this.dwell.setRing(this.board.ringGeometry());
+        this.dwell.refreshRects();
+      });
+      // tiles animate to their new slots over 200ms, so measure again after.
+      setTimeout(() => this.dwell.refreshRects(), 300);
     });
     window.addEventListener('keydown', (e) => this.onKey(e));
     window.addEventListener('mousemove', (e) => {
@@ -223,70 +250,73 @@ export class App {
     this.calibration.mountOverlay(this.overlay.root);
 
     void this.calibration.start().then((result) => {
-      if (!result.samples.length) {
+      if (!result.dots.length) {
         toast('Calibration cancelled', 'warn');
-        if (this.estimator.calibrated) this.showBoard();
+        if (this.pointer.calibrated) this.showBoard();
         else void this.runSetup();
         return;
       }
-      try {
-        const model = this.estimator.fit(result.samples);
-        // cverrorpx is the held-out error, so it is directly comparable to the
-        // tile size (~84-140 px). above roughly a tile radius the cursor will
-        // not reliably land where the user is looking, and telling them to
-        // redo it beats letting them fight a bad fit.
-        const px = Math.round(model.cvErrorPx);
-        const badFit = px > 120;
-        // the sway pass is the only source of head-pose variance. if the user
-        // sat still through it there is nothing to fit the compensation terms
-        // from, head mode has no vertical axis, and iris mode will drift the
-        // moment they shift position. that is worth saying out loud, because
-        // the fit itself will look perfectly healthy.
-        const { yaw, pitch } = result.headSpread;
-        const noSway = yaw < 0.12 || pitch < 0.08;
-        // a high outlier fraction (see gaze/ridge.ts's huber pass) means a lot
-        // of frames disagreed sharply with the rest of the capture - a shaky
-        // camera, bad lighting, or someone walking through frame - which is a
-        // more useful thing to tell the user than just "the fit is loose".
-        const noisy = model.outlierFrac > 0.18;
-
-        if (result.weakPoints.length) {
-          toast(`${result.weakPoints.length} point(s) had weak tracking - consider redoing`, 'warn', 3600);
-        } else if (noisy) {
-          toast(
-            `Calibrated (${px}px), but tracking was unsteady for ${Math.round(model.outlierFrac * 100)}% ` +
-              `of it - steadier lighting or holding still helps more than redoing.`,
-            'warn',
-            4400,
-          );
-        } else if (badFit) {
-          toast(`Calibrated but loose (${px}px). Press C to redo.`, 'warn', 4200);
-        } else if (noSway) {
-          toast(
-            `Calibrated (${px}px), but your head barely moved during the head-movement dots - ` +
-              `redo those and the cursor will survive you shifting position.`,
-            'warn',
-            5000,
-          );
-        } else {
-          toast(`Calibrated - typical error ${px}px`, 'good', 2600);
-        }
+      const fit = fitPointer(result.dots);
+      const r4 = (v: number) => v.toFixed(4);
+      const r3 = (v: number) => v.toFixed(3);
+      const sg = (v: number) => (v > 0 ? '+1' : '-1');
+      if (fit.diag) {
+        const { config: c, best: b, used } = fit.diag.eyeFit;
+        const u = used === 'measured' ? b : c;
         console.info(
-          `[gaze] mode=${model.mode} lambda=${model.lambda} ` +
-            `cv=${model.cvErrorPx.toFixed(1)}px train=${model.trainErrorPx.toFixed(1)}px ` +
-            `outlierFrac=${model.outlierFrac.toFixed(2)} ` +
-            `samples=${result.samples.length} ` +
-            `headSpread=yaw ${yaw.toFixed(3)} rad / pitch ${pitch.toFixed(3)} rad`,
+          `[gaze] calib eyeFit config(g=${c.gain},s=${sg(c.sign)}) resid=${r3(c.residual)} ` +
+            `best(g=${b.gain},s=${sg(b.sign)}) resid=${r3(b.residual)} ` +
+            `using=(g=${u.gain},s=${sg(u.sign)}) (${used})`,
         );
-      } catch (err) {
-        toast('Calibration failed, try again', 'warn', 3000);
-        console.error(err);
-        void this.runSetup();
+        const d = fit.diag;
+        console.info(
+          `[gaze] calib split x head=${r4(d.split.headX)} eye=${r4(d.split.eyeX)} | ` +
+            `y head=${r4(d.split.headY)} eye=${r4(d.split.eyeY)}`,
+        );
+      }
+      if (!fit.ok) {
+        console.info(`[gaze] calib rejected ${fit.reason}: ${fit.message} (${result.elapsedMs}ms)`);
+        toast(fit.message, 'warn', 3200);
+        // a camera with no transform matrix won't fix itself on a retry.
+        if (fit.reason !== 'noHeadPose' && this.hasRecentFace()) this.startCalibration();
+        else if (this.pointer.calibrated) this.showBoard();
+        else void this.runSetup();
         return;
       }
+      const m = fit.model;
+      const deg = (v: number) => (v * RAD_TO_DEG).toFixed(1);
+      // A maps rad to ring radii, so 1 / |column| is roughly the head + eye
+      // turn (deg) from centre to the ring edge on that axis.
+      const reach = (a: number, b: number) => deg(1 / Math.hypot(a, b));
+      console.info(
+        `[gaze] calib zero=${r4(m.zero.x)},${r4(m.zero.y)}rad ` +
+          `A=[${m.A.map((v) => v.toFixed(2)).join(',')}] ` +
+          `reach~${reach(m.A[0], m.A[2])},${reach(m.A[1], m.A[3])}deg ` +
+          `Qu=[${m.Q.u.map(r3).join(',')}] Qv=[${m.Q.v.map(r3).join(',')}] ` +
+          `eye=g${m.eyeGain},s${sg(m.eyeSign)} ` +
+          `resid=${r3(m.residualFrac)} (affine ${r3(fit.diag.affineResidualFrac)}) ring radii ` +
+          `frames=${fit.diag.framesPerDot.join(',')} ` +
+          `noPose=${Math.round(fit.diag.missingPoseFrac * 100)}% ` +
+          `arrival=${result.arrivalWaitMs.join(',')}ms elapsed=${result.elapsedMs}ms`,
+      );
+      this.pointer.setModel(m);
+      toast('Ready - look at a word and hold', 'good', 2600);
       this.overlay.setVisible(CONFIG.ui.debugOverlayDefault);
       this.showBoard();
     });
+  }
+
+  /**
+   * what the pointer maps onto: the board's ring when it is up, else the ring
+   * the board would solve for this window, centred (sentence list, accuracy).
+   */
+  private pointerFrame(): PointerFrame {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const g = this.phase === 'board' ? this.board.ringGeometry() : null;
+    if (g) return { cx: g.cx, cy: g.cy, rx: g.rx, ry: g.ry, vw, vh, ring: true };
+    const { rx, ry } = solveRingLayout(vw, vh);
+    return { cx: vw / 2, cy: vh / 2, rx, ry, vw, vh, ring: false };
   }
 
   /* ------------------------------------------------------------------- board */
@@ -318,7 +348,7 @@ export class App {
 
   private syncTargets(): void {
     if (this.phase !== 'board') return;
-    this.dwell.setTargets(this.board.targets());
+    this.dwell.setTargets(this.board.targets(), this.board.ringGeometry());
   }
 
   private startMouseLoop(): void {
@@ -349,6 +379,18 @@ export class App {
       this.calibration.onFrame(frame, t);
       return;
     }
+    if (this.phase === 'accuracy') {
+      // same path the board runs, minus dwell: closed lids keep the last point.
+      const open = !!frame && !bothEyesClosed(frame, CONFIG.blink.closedThreshold);
+      if (open) this.pointer.update(frame);
+      this.accuracy.onFrame(
+        frame ? this.pointer.point : null,
+        frame ? this.pointer.rawPoint : null,
+        open ? this.pointer.signalNow : null,
+        t,
+      );
+      return;
+    }
     if (this.phase !== 'board' || this.mouseMode) return;
 
     if (!frame) {
@@ -368,9 +410,9 @@ export class App {
     this.faceLostToasted = false;
 
     const closed = bothEyesClosed(frame, CONFIG.blink.closedThreshold);
-    // only feed the regression while the eyes are open - closed lids make the
+    // only feed the pointer while the eyes are open - closed lids make the
     // iris landmarks meaningless and would yank the cursor across the screen.
-    const point = closed ? this.estimator.point : this.estimator.update(frame);
+    const point = closed ? this.pointer.point : this.pointer.update(frame);
     if (point) this.cursor.move(point);
     this.dwell.update(point, closed, t);
   }
@@ -382,25 +424,37 @@ export class App {
 
     if (id.startsWith('word:')) {
       this.addConcept(id.slice(5));
-      // gaze-confirmed only: a mouse click on the same tile goes through
-      // board's onword callback, not this dwell-fire path, precisely because
-      // a click tells us nothing about where the eyes actually were.
-      if (!this.mouseMode) {
-        this.estimator.recordImplicitCalibration({
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2,
-        });
-        console.debug(
-          `[gaze] implicit recal: ${this.estimator.implicitSampleCount} samples, ` +
-            `cv=${this.estimator.errorPx.toFixed(1)}px outlierFrac=${this.estimator.outlierFrac.toFixed(2)}`,
-        );
-      }
-    } else if (id.startsWith('cat:')) this.openCategory(id.slice(4) as CategoryId);
-    else if (id === 'action:categories') this.showCategories();
+      this.feedImplicitCalibration(id, rect);
+    } else if (id.startsWith('cat:')) {
+      this.feedImplicitCalibration(id, rect);
+      this.openCategory(id.slice(4) as CategoryId);
+    } else if (id === 'action:categories') {
+      this.feedImplicitCalibration(id, rect);
+      this.showCategories();
+    }
     else if (id === 'action:clear') this.clearConcepts();
     else if (id === 'action:speak') this.speakRaw();
     else if (id === 'action:back') this.backToConcepts();
     else if (id.startsWith('cand:')) this.chooseCandidate(Number(id.slice(5)));
+  }
+
+  /**
+   * a confirmed gaze fire is evidence of where the eyes were, so it nudges
+   * the pointer's zero. gaze-confirmed only: a mouse click on the same tile goes
+   * through board's callbacks, not this dwell-fire path, precisely because a
+   * click tells us nothing about where the eyes actually were.
+   */
+  private feedImplicitCalibration(id: string, rect: DOMRect): void {
+    if (this.mouseMode) return;
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const r = this.pointer.recordImplicitCalibration({ x, y });
+    if (!r) return;
+    const deg = (v: number) => (v * RAD_TO_DEG).toFixed(2);
+    console.info(
+      `[gaze] fire ${id} at ${Math.round(x)},${Math.round(y)}: ` +
+        `err ${deg(r.error.x)},${deg(r.error.y)}deg zero step ${deg(r.step.x)},${deg(r.step.y)}deg`,
+    );
   }
 
   private addConcept(wordId: string): void {
@@ -589,18 +643,76 @@ export class App {
     this.syncTargets();
   }
 
+  /* ---------------------------------------------------------- accuracy check */
+
+  /** key `a`: ring spots + centre, angular and px error, sector picked. no fitting. */
+  private startAccuracyCheck(): void {
+    if (this.phase !== 'board') return;
+    if (this.mouseMode || !this.pointer.calibrated) {
+      toast('Accuracy check needs a gaze calibration first', 'warn', 2400);
+      return;
+    }
+    if (!this.hasRecentFace()) {
+      toast('No face detected - center your face in the camera and try again', 'warn', 3200);
+      return;
+    }
+    this.phase = 'accuracy';
+    this.dwell.enabled = false;
+    this.dwell.reset();
+    // the cursor would be looked at instead of the dot and bias the numbers.
+    this.cursor.setVisible(false);
+    this.cancelCompose();
+    this.setScreen(this.accuracy.root);
+
+    const need = (p: Point) =>
+      this.pointer.model ? signalFor(this.pointer.model, p, this.pointerFrame()) : null;
+    void this.accuracy.start(need).then((r) => {
+      if (r.dots.length) {
+        console.info(
+          `[gaze] accuracy check: mean ${r.meanDeg.toFixed(1)}deg ${r.meanPx.toFixed(1)}px ` +
+            `worst ${r.worstDeg.toFixed(1)}deg over ${r.dots.length} dots` +
+            (r.cancelled ? ' (stopped early)' : ''),
+        );
+        // plain lines, not console.table: table rows don't survive log capture.
+        const sec = (v: number | null) => (v === null ? 'centre' : String(v));
+        r.dots.forEach((d, i) => {
+          console.info(
+            `[gaze] dot ${i + 1} at ${Math.round(d.target.x)},${Math.round(d.target.y)}: ` +
+              `error ${d.errorDeg.toFixed(1)}deg ${d.errorPx.toFixed(1)}px ` +
+              `sector ${sec(d.sector)}/${sec(d.wantSector)}`,
+          );
+        });
+        const hits = r.dots.filter((d) => d.sector === d.wantSector).length;
+        toast(
+          `Accuracy: mean ${r.meanDeg.toFixed(1)} deg (${Math.round(r.meanPx)}px), ` +
+            `right tile ${hits}/${r.dots.length}` +
+            (r.cancelled ? ' (partial)' : ''),
+          hits === r.dots.length ? 'good' : 'warn',
+          4200,
+        );
+      } else {
+        toast('Accuracy check stopped', 'info', 1600);
+      }
+      this.showBoard();
+    });
+  }
+
   /* ---------------------------------------------------------------- controls */
 
-  // caregiver-only keys, nothing on screen for them. cursor is always iris +
-  // head pose, so there's no mode switch.
+  // caregiver-only keys, nothing on screen for them. there is one cursor
+  // (head + eyes), so there is no mode to switch.
   private onKey(e: KeyboardEvent): void {
     if (e.target instanceof HTMLInputElement) return;
     switch (e.key.toLowerCase()) {
       case 'd':
         this.overlay.setVisible(!this.overlay.isVisible());
+        this.dwell.refreshRects();
         break;
       case 'c':
         if (this.phase === 'board') this.startCalibration();
+        break;
+      case 'a':
+        this.startAccuracyCheck();
         break;
       case 's':
         this.speaker.stop();

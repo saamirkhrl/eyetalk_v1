@@ -1,7 +1,8 @@
 
-import { CATEGORIES, CONFIG, type CategoryId, sidePanelWidthPx } from '../core/index.ts';
+import { CATEGORIES, type CategoryId } from '../core/index.ts';
 import type { DwellTarget } from './dwell.ts';
 import { Tile } from './tile.ts';
+import { type RingGeometry, solveRingLayout } from './zones.ts';
 
 export interface BoardCallbacks {
   onWord: (id: string) => void;
@@ -36,6 +37,10 @@ export class Board {
   private composeBar: HTMLElement | null = null;
   private composeMs = 0;
   private spokenTimer = 0;
+  /** last solved ring radii and tile size, for `ringgeometry()`. */
+  private ringRx = 0;
+  private ringRy = 0;
+  private ringSize = 0;
 
   constructor(cb: BoardCallbacks) {
     this.cb = cb;
@@ -112,33 +117,11 @@ export class Board {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    /** width reserved for the history / hud columns plus a gutter. */
-    const SIDE_RESERVE =
-      sidePanelWidthPx(w) + CONFIG.ui.sidePanelInsetPx + CONFIG.ui.sideGutterPx;
-    /** height reserved for the clear / speak row plus a gutter. */
-    const BOTTOM_RESERVE = 112;
-    const MIN_SIZE = 56;
+    const { rx, ry, size } = solveRingLayout(w, h);
 
-    // the reserves are hard. `hittest` has no occlusion pass, so a tile that
-    // slides under a panel still charges and fires behind it - the worst
-    // failure the board has. size and radius are therefore solved together:
-    // when the viewport cannot afford a full ring the tiles shrink, and the
-    // radius never crosses into a reserve.
-    let size = Math.min(140, Math.min(w, h) * 0.15);
-    let rx = 0;
-    let ry = 0;
-    for (;;) {
-      rx = Math.min(w / 2 - size / 2 - SIDE_RESERVE, 400);
-      ry = Math.min(h / 2 - size / 2 - BOTTOM_RESERVE, 300);
-      // eight tiles at 45 degrees apart sit 0.765r from each other, so the
-      // radius has to clear 1.31 tiles or neighbours overlap.
-      const minR = size * 1.35;
-      if ((rx >= minR && ry >= minR) || size <= MIN_SIZE) break;
-      size -= 4;
-    }
-    size = Math.max(size, MIN_SIZE);
-    rx = Math.max(rx, size * 1.35);
-    ry = Math.max(ry, size * 1.35);
+    this.ringRx = rx;
+    this.ringRy = ry;
+    this.ringSize = size;
 
     const tiles = this.ringTiles();
     let i = 0;
@@ -482,6 +465,20 @@ export class Board {
       }
     }
     return out;
+  }
+
+  /** ring layout for direction-based selection, or null when the ring is not the target. */
+  ringGeometry(): RingGeometry | null {
+    if (this.mode !== 'concepts') return null;
+    const r = this.root.getBoundingClientRect();
+    return {
+      cx: r.left + r.width / 2,
+      cy: r.top + r.height / 2,
+      rx: this.ringRx,
+      ry: this.ringRy,
+      size: this.ringSize,
+      ids: this.ringTiles().map(([id]) => id),
+    };
   }
 
   /** flash the tile that just fired. */

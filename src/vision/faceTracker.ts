@@ -78,7 +78,9 @@ export class FaceTracker {
       FaceLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: CONFIG.vision.modelPath, delegate },
         runningMode: 'VIDEO',
-        numFaces: 1,
+        // 2 so a bystander behind the user can't steal the track; features.ts
+        // keeps the biggest face.
+        numFaces: 2,
         // needed for blink detection.
         outputFaceBlendshapes: true,
         // needed for head pose.

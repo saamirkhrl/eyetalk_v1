@@ -1,3 +1,4 @@
+export * from './accuracyCheck.ts';
 export * from './board.ts';
 export * from './calibration.ts';
 export * from './dwell.ts';
@@ -5,3 +6,4 @@ export * from './history.ts';
 export * from './landing.ts';
 export * from './tile.ts';
 export * from './toast.ts';
+export * from './zones.ts';

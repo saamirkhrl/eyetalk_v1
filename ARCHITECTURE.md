@@ -18,14 +18,19 @@ settings menu or undo tile. Caregiver-only controls live on the keyboard:
 | Remove a picked word | - | click any concept chip |
 | Hide / show the camera view | - | `D` |
 | Recalibrate | - | `C` |
+| Accuracy check (9 dots, mean / worst error) | - | `A` |
 | Stop speech | - | `S` |
-| Cancel a selection in progress | shut both eyes briefly | - |
-| Cancel calibration | shut both eyes and hold ~2 s | `Esc` |
+| Cancel and go back to the categories | shut both eyes for about half a second | - |
+| Cancel calibration or the accuracy check | shut both eyes and hold ~2 s (calibration only) | `Esc` |
 
-The cursor is always `iris` mode (iris + head pose), which already follows the head when
-the head moves and the eyes when only the eyes move, so there is no mode switch. The old
-Settings menu, HUD and `Undo last` tile were removed as clutter; a wrong word is fixed with
-`Clear`, or by finishing the message.
+You point with your face: a small head turn plus the eyes, a scaled iris term added to head yaw
+and pitch (see "The face pointer" below). Eyes alone move the pointer less, so head plus eyes
+is the intended use; there is no mode to switch. `A` runs an accuracy check: nine dots (the eight ring tile positions plus the
+centre), with the angular error in degrees, the ring sector the cursor would have selected
+against the dot's own sector, and the pixel error logged per dot. Nothing is fitted during the
+check; it measures the model the board is actually running. The old Settings menu, HUD and
+`Undo last` tile were removed as clutter; a wrong word is fixed with `Clear`, or by finishing
+the message.
 
 Calibration itself is the one screen with no gaze targets (there is no fitted model yet),
 which is why the eyes-closed hold exists.
@@ -58,7 +63,8 @@ tiles, which only spaces them further apart.
 - **A ring swap requires the cursor to leave first.** The gaze that just opened "Needs" is
   resting exactly where one of the Needs words now sits, and would fire it 1.2 s later
   just by continuing to read it. `DwellController.requireExit()` marks whichever new tile
-  lands under the cursor as not engageable until the hit test has left it once. The same
+  the hit test picks right now (on the ring, the tile in the cursor's direction) as not
+  engageable until the hit test has left it once. The same
   applies to the mouse pointer after a click.
 - **Both sentence paths know every word.** The model prompt (`src/nlp/prompt.ts`) lists the
   selected words as plain words, and `promptHints()` adds an instruction only for the two
@@ -85,8 +91,8 @@ dwells away (category, then word), including urgent ones like "help".
 ## How it works
 
 ```
-webcam ─► FaceLandmarker ─► features ─► ridge regression ─► One Euro filter ─► cursor
-                                │                                                │
+webcam ─► FaceLandmarker ─► pose + iris ─► face pointer ─► One Euro filter ─► cursor
+                                │                                                 │
                                 └── blink blendshapes ──────► dwell state machine ┘
                                                                      │
                                             concepts ─► LLM worker ─► sentences ─► speech
@@ -94,170 +100,198 @@ webcam ─► FaceLandmarker ─► features ─► ridge regression ─► One 
 
 ### Face tracking (`src/vision/`)
 
-`@mediapipe/tasks-vision` FaceLandmarker in `VIDEO` mode, one `detectForVideo` per
-`requestAnimationFrame`, GPU delegate with an automatic CPU/WASM fallback. Per frame we
-extract:
+`@mediapipe/tasks-vision` FaceLandmarker in `VIDEO` mode, `numFaces: 2`, one `detectForVideo`
+per `requestAnimationFrame`, GPU delegate with an automatic CPU/WASM fallback. When two faces
+are in view the tracker keeps the one with the largest outer-eye-corner distance, which is the
+one nearest the camera, so a bystander walking behind the user cannot steal the track. There
+is no identity tracking: if the user leans back and someone leans in, the nearer face wins.
+Per frame we extract:
 
+- **head yaw and pitch** - from `facialTransformationMatrixes`, in radians. This is the main
+  term of the pointer signal. If the matrix is missing for a frame, yaw and pitch are written
+  as 0 and calibration counts the frame as having no pose.
 - **iris offsets** - the iris centre relative to the midpoint of the two eye corners,
   projected onto the eye's own axes and divided by the corner-to-corner width. Three
   deliberate choices: the corners sit on bone and barely move, whereas the lids shift with
   every blink and squint, so referencing the lids would inject that motion into the vertical
   gaze estimate; projecting onto the eye's axes rather than the image's makes the feature
   roll-invariant by construction; dividing by eye width makes it invariant to how close the
-  user sits and to camera resolution. The two eyes are then averaged, which gives ~1.4x the
-  signal-to-noise of either eye alone.
-- **head pose** - yaw/pitch/roll decomposed from `facialTransformationMatrixes` (column-major
-  4x4, ZYX Euler convention, with the gimbal-lock branch handled).
-- **head position** - nose tip recentred to [-0.5, 0.5] of the frame (translation) and the
-  outer-eye-corner distance as a fraction of frame width (distance to the camera). An iris
-  offset only gives a gaze *direction*; turning it into a screen point needs to know where the
-  eye is. Without these the fit is valid only at the exact head position it was calibrated at.
-- **blink state** - the `eyeBlinkLeft` / `eyeBlinkRight` blendshape scores.
+  user sits and to camera resolution. The two eyes are averaged by the pointer, which gives
+  ~1.4x the signal-to-noise of either eye alone.
+- **nose tip and eye-corner distance** - still computed per frame (`FaceMetrics`); the
+  eye-corner distance is also what picks the nearest face.
+- **blink state** - the `eyeBlinkLeft` / `eyeBlinkRight` blendshape scores. These are the only
+  blendshapes used. The `eyeLookIn/Out/Up/Down` look scores were
+  dropped with the old regression; the iris landmarks carry the eye term instead.
 
 The model file (`public/models/face_landmarker.task`) and the MediaPipe WASM runtime are
 vendored into `public/`, so face tracking makes no third-party request at all.
 
-### Calibration and ridge regression (`src/ui/calibration.ts`, `src/gaze/ridge.ts`, `src/gaze/featureSpec.ts`)
+### The face pointer (`src/gaze/facePointer.ts`, `src/ui/calibration.ts`, `src/ui/zones.ts`)
 
-Two passes.
+The cursor is not a regression from features to pixels. It is a two-term pointer that is
+calibrated in angles and mapped onto whatever ring the board has laid out right now.
 
-**Grid pass** - fifteen dots: a 3x3 grid inset to 10%/50%/90% of the viewport, plus four edge
-midpoints, plus one on each bottom-corner action tile (Clear and Speak). The action row sits below
-the 90% row, so without those two dots the cursor could only reach Clear by extrapolation and
-slid along a diagonal edge short of it. Each dot waits 900 ms for the eye to land before recording, then captures up to 30
-frames. Frames where the face is lost or the user is mid-blink are discarded. The order is
-shuffled so consecutive dots are far apart - a real saccade lands cleanly, whereas adjacent
-dots invite the user to drift their gaze and smear the fixation across the settle window.
+**History, in one paragraph.** The first version was a 7-feature ridge regression (iris
+offsets plus head pose and position) fitted from a calibration with a sway pass. It was
+measured, and the head terms were cut, leaving an eyes-only 14-column ridge fit from a
+20-dot, 45 second calibration with a Huber robust pass, cross-validated lambda and a
+screen-space drift offset. That was measured too and dropped, because it was fragile for
+strangers: the calibration is long and tiring, its pixel-space targets break the moment the
+window is resized or the user sits somewhere else, and the iris signal it relied on collapses
+with glasses or low lids, with nothing to fall back on. The face pointer replaces all of it:
+src/gaze/estimator.ts, ridge.ts and featureSpec.ts are gone.
 
-**Sway pass** - five more dots where the instruction inverts: keep your eyes locked on the dot,
-and move your head. Every frame the grid pass records shares one head pose, so from the grid
-alone the model cannot tell "the head is here" from "the head is always here" - it silently
-treats the pose it saw as a constant of the universe, and the moment the user shifts in their
-seat or nudges the laptop the fit is invalid. The sway pass supplies many head poses against a
-*fixed* screen target, which is exactly the evidence the compensation terms need.
+#### The signal
 
-The five are not identical. One **full** dot sits at screen centre and sweeps all four
-compensator axes (yaw, pitch, nose.x, nose.y) - because gaze there is near zero, this is what
-teaches the *additive* part of the correction (move the head, the required gaze estimate shifts
-by roughly a constant, wherever on screen you are looking). Four **corner** dots sit near where
-the word tiles actually are and sweep rotation only (yaw, pitch) - off-centre gaze there gives
-the axis×head cross terms real signal, which is what teaches the *gradient* of the correction
-(whether that shift changes depending on where you are already looking, which perspective says
-it does). A single off-axis point can only teach that gradient from one direction, which is an
-extrapolation everywhere else on the ring; four corners teach it from four.
+Per frame, in radians:
 
-The instruction shown during a sway dot is deliberately just "Follow with your EYES and HEAD" -
-no named segments, no "now turn, now tip, now lean". The math the correction depends on still
-cares whether the user's motion staged one axis at a time or not: rotating and translating
-together makes yaw and nose.x almost perfectly correlated, ridge splits the credit between them
-arbitrarily, and the arbitrary split falls apart at every new combination of the two. The
-staging used to be explicit in the copy; it is now left to what a person naturally does when
-told to "move your head" while looking at a fixed point, which in practice tends to be some mix
-of turning and leaning rather than one clean axis at a time - noisier evidence than a scripted
-sequence, but simpler for a first-time user to actually follow, which was the trade being made.
-`tests/math.test.mjs`'s sway-pass block still simulates staged motion (matching the pre-simplification
-UI) because that is the cleanest way to isolate and verify the underlying claim numerically.
-In that simulation, grid alone leaves **244.9 px** of error after the user shifts position; a
-single off-axis sway point leaves **32.5 px**; the four-corner layout leaves **21.3 px**, and is
-asserted to beat the single-point layout, not just beat "no sway pass". These are simulated
-test results on synthetic data and an upper bound on what the simplified, unstaged
-instruction achieves in practice, not a live guarantee of it.
+```
+sx = yaw   + eyeSign * eyeGain * (irisLeft.x + irisRight.x) / 2
+sy = pitch + eyeSign * eyeGain * (irisLeft.y + irisRight.y) / 2
+```
 
-Compensator dimensions (yaw, pitch, nose.x, nose.y) also get a wider standardisation clamp than
-gaze axes and curvature - `COMPENSATOR_Z_CLAMP = 3.5` versus `Z_CLAMP = 2.5` (`gaze/featureSpec.ts`).
-The clamp exists to bound extrapolation when there is no evidence; now that the sway pass
-supplies real evidence across a wide range for exactly these dimensions, clamping them as
-tightly as an unswayed axis would throw that evidence away and saturate the correction right
-where the user is most likely to have moved to.
+Head yaw and pitch carry the large, reliable part. The eye term adds the fine part and lets a
+user who cannot turn their head much still steer, though eyes alone move the pointer less.
+`pointer.eyeGain` (1.5) is the default before a fit, deliberately below the physical value of
+about 2.5 radians per eye-width so the head term dominates for people with poor iris tracking
+(glasses, low lids). `pointer.eyeSign` (+1) says whether looking right shows up as a positive
+iris x in the same direction head yaw turns the signal. Calibration measures both per user
+when the data is clear enough (below).
 
-Calibration reports the yaw/pitch spread it observed, and the app says so plainly if the user
-sat still through the sway pass - the fitted model looks perfectly healthy either way, so
-there is no other way to tell.
+#### Calibration flow
 
-The landing page states the real numbers - twenty dots, about forty-five seconds, and the fact
-that the last five ask for head movement - and its step-1 animation runs twenty dots on a
-5x4 field with the sway five scanning differently.
+Thirteen dots, about 15 seconds (the minimum with every gate passing at once is about 16 s;
+the console logs the real elapsed time). Positions are in ring coordinates, where 1 is the
+ring edge, so they follow the word ring as the board lays it out for the current window
+(`solveRingLayout(w, h)` in `src/ui/zones.ts`, shared with `board.ts`):
 
-The fit is hand-written, no ML library:
+- the centre;
+- 8 ring dots at the 8 word tile spots, angle -90 + i * 45 degrees, i = 0..7;
+- 4 inner dots at `calibration.innerRingFrac` (0.65) on the cardinals.
 
-1. **Standardise with a floor.** Each raw feature is centred and divided by
-   `max(observed std, floor)`, where the floor is a physical scale declared per feature in
-   `featureSpec.ts` (0.012 eye-widths for iris terms, ~0.1 rad for head angles). Then clamp to
-   ±2.5σ. See "the head-movement bug" below for why the floor is load-bearing.
-2. **Expand** to a structured 2nd-order basis: intercept, all linear terms, curvature in the
-   two real gaze axes (`za0²`, `za1²`, `za0·za1`), and head-compensation cross terms
-   (`axis × yaw`, `axis × pitch`, `axis × nose.x`, `axis × nose.y`). 19 columns for iris mode,
-   13 for head mode. A *full* quadratic over the same features would be 36 columns of mostly
-   physically meaningless interactions - `roll × iris-right-y` has no reason to exist.
-3. **Solve** the generalised ridge normal equations `(XᵀX + D)w = Xᵀy` by Gauss-Jordan
-   elimination with partial pivoting, for the x and y targets at once (same matrix, two
-   right-hand sides). `D` is diagonal but not `λI`: the intercept is unpenalised, the two
-   primary gaze axes are penalised at 0.02λ, the head-pose linear terms at 0.15λ, curvature
-   and the compensation cross terms at 0.3-0.5λ, everything else at λ. So as λ grows the model
-   degrades gracefully toward "linear in the two gaze axes", which is the correct thing to
-   fall back to. The head-pose linear terms get a light penalty deliberately: they carry most
-   of the position compensation, and leaving them at full strength means cross-validation
-   shrinks them away and reproduces the exact failure they exist to prevent.
-4. **Choose λ by cross-validation**, not by a constant. Leave-one-*target*-out: hold out every
-   frame from one dot, fit on the rest, measure pixel error on the held-out dot, sweep a log
-   grid from 1e-4 to 10. Folds are grouped by dot because 30 frames of one fixation are
-   near-duplicates - holding out single frames would leave 29 siblings in the training set and
-   report a meaninglessly small error for every λ. Reusing the accumulated Gram matrix and
-   subtracting each fold's contribution makes the whole sweep a couple of milliseconds.
+Order: centre first, then the ring dots far apart first (0, 4, 2, 6, 1, 5, 3, 7), then the
+inner four (right, left, down, up). The hint reads "Look at the dot" on the centre dot and
+"Follow the dot with your head and eyes" on the others (the bubble says "Look here" /
+"Follow me"). Both head and eyes are fine, and the fit does not need to know which mix the
+user picked.
 
-The error reported after calibrating is that held-out error, so it estimates accuracy at
-a screen position the model has never seen - which is its situation in every moment of real
-use. Training error is logged to the console for diagnostics but is not shown, because it is
-reassuring and useless.
+Each dot goes through an arrival gate and then a capture:
 
-Ridge rather than plain least squares because the columns are badly collinear (over a narrow
-range `z` and `z²` are nearly proportional) and because the *effective* sample count is the
-number of dots, not the number of frames. 19 free parameters against 15 grid dots (20 once the
-sway dots are counted, but those trade off translation-vs-rotation motion, not fresh screen
-positions) is interpolation, not fitting; adding to the diagonal lifts every eigenvalue and
-shrinks the weights along the directions the data barely constrains.
+- **Arrival gate** - the dot glides over `calibration.dotTravelMs` (400) and the user gets at
+  least `settleMs` (500; `firstSettleMs` 600 for the first dot, which teleports). Capture then
+  starts once the signal has stayed within `stillRad` (0.015 rad) for `stillMs` (150). The
+  still run starts when the dot lands, so it can finish inside the settle instead of after it.
+  `maxWaitMs` (500) is the ceiling past the settle so a jittery user still gets through.
+- **Capture** - `centreCaptureMs` (1000) on the centre dot, `captureMs` (650) on the others.
+  Frames with the face lost or the eyes shut are dropped.
 
-#### The head-movement bug
+Holding both eyes shut abandons calibration, and so does Esc. There is no redo of individual
+dots: a bad dot rejects the whole run (guards below), which restarts it where a restart can
+help.
 
-The obvious way to standardise is to z-score each feature by its own observed standard
-deviation. For gaze calibration that is actively harmful, and it is worth understanding
-because it produced a spectacular failure mode.
+#### Fit
 
-We tell the user "look at the dot, keep your head still". They comply. So across the capture,
-yaw might have a standard deviation of 0.004 rad - which is not head movement, it is landmark
-jitter. Dividing by 0.004 rescales pure noise to unit variance, the fit cannot tell it from
-signal, and across a handful of dots some of that noise correlates with the target by chance,
-so the solver hands the column real weight.
+`fitPointer` takes the per-dot median signal (a median, so a stray frame cannot move it):
+`s = (yaw, pitch) + eyeSign * eyeGain * irisAverage`.
 
-Then the user turns their head 0.25 rad. In the standardised space that is **60 standard
-deviations**, with squares on top. The cursor slams into a corner and stays there. Symptom as
-reported: "the pointer drifts slowly around one area, and if I move my head it goes crazy."
+1. **zero** is the centre dot's median. It is the only part implicit recalibration and the
+   drift guard move later.
+2. **Affine.** A 2x2 matrix `A` maps `s - zero` to ring coordinates `(u, v)`, by least squares
+   over the 12 non-centre dots, with no intercept. The dots at the ring edge and at 0.65 give
+   it both a long and a short lever. `A` carries any mirroring, so no mirror flag is needed.
+3. **Curvature.** A small term on `(p*p, q*q, p*q)`, where `(p, q) = A * (s - zero)` clamped
+   to +/-1.4 so a far-off look extrapolates linearly instead of bending away. It is fitted by
+   ridge least squares on the affine residual with `pointer.curvatureRidge` (0.3), so it stays
+   small unless the dots really ask for a bend (a head turn is closer to an angle than to a
+   straight line on screen).
+4. **Eye gain and sign.** The full fit above is run for every gain in `pointer.eyeGainGrid`
+   (0.5, 1, 1.5, 2, 2.5, 3) with sign +1 and -1, and each is scored by the rms residual in ring
+   radii. The best pair replaces the config pair (`eyeGain` 1.5, `eyeSign` +1) only if it beats
+   it by more than 15 percent (`eyeSignMinRelDiff`) and by more than 0.01 ring radii
+   (`eyeFitMinAbsDiffFrac`); otherwise the config pair stays. A head-only user gives no
+   evidence either way and lands on the config pair, which is correct because the eye term does
+   nothing for them. A pure eyes-only user does not pin the gain either, because `A` absorbs
+   it; the gain is learned from how the head/eye mix varies across dots.
 
-The floors fix it: a head that never moved during calibration produces z-values near zero, the
-column carries no variance, ridge shrinks it to nothing, and a run-time head turn reaches
-z ≈ 2 instead of z ≈ 60. The ±2.5 clamp then bounds the worst case regardless - a bad frame
-saturates the cursor at the edge of the calibrated region rather than sending it to x = 40000.
+The model is stored in angles (`zero`, `A`, the curvature coefficients, the chosen gain and
+sign) and carries no pixel numbers.
 
-`npm run test` asserts exactly this on a simulated capture: given a frozen-head calibration, a
-0.25 rad head turn must move the cursor less than 250 px (in the simulated test it moves
-10.6 px), while ±0.05 eye-widths of actual eye movement must still span more than 700 px (it
-spans 1310 px).
+**Guards.** Three ways to reject, each with a toast. `missingDot` and `underExcursion`
+restart calibration; the missing-matrix one returns to setup (or to the board if a fit
+already exists), since a retry on the same camera cannot help:
 
-Both cursor modes can be fit from the **same** capture. The board only uses `iris`; `head`
-stays in the estimator but has no UI route:
+- `underExcursion`: `A` is near-singular, or the ring signal half-span (right minus left, down
+  minus up) is under `minExcursionRad` (0.025 rad, about 1.5 degrees), so the user barely
+  moved: "Try again - turn your head to follow each dot".
+- `noHeadPose`: the transform matrix missing on more than half the frames means there is no
+  head signal: "Head tracking unavailable on this camera".
+- `missingDot`: a dot with no usable frames: "Try again - keep your face in view".
 
-- `iris` - iris mean + head rotation, translation and distance (7 features). Precise, the
-  default.
-- `head` - head rotation + nose-tip translation + distance (5 features). Coarser, but survives
-  glasses, glare, and bad lighting. This is the one to switch to if the cursor starts
-  drifting. It only has a vertical axis if the calibration capture contains vertical head
-  movement, which is what the sway pass guarantees - following dots with your eyes alone
-  barely pitches the head at all, and a capture without pitch produces a cursor that moves
-  left and right and nothing else.
+Success reads "Ready - look at a word and hold".
+
+#### Mapping, and why a resize is free
+
+At runtime, on the current ring (centre `cx, cy`, radii `rx, ry`):
+
+```
+(p, q) = A * (s - zero)                       affine, ring coords
+(u, v) = (p, q) + curvature(clamp(p, q))      small bend
+x = cx + rx * u
+y = cy + ry * v
+```
+
+The result is clamped to the viewport plus 60 px and then goes through the One Euro filter
+in pixels. Because the model is in angles and the ring is looked up each frame, resizing the
+window, rotating a tablet or moving to a different screen just maps the same signal onto the
+new ring: the same calibration survives, with no recalibration. The old pixel-target models
+could not do that.
+
+#### Implicit recalibration
+
+A calibration is a snapshot of where "centre" was. Sitting position drifts, so `zero` is
+nudged by use. On every confirmed gaze fire (a word, a category, or `Back to categories`;
+mouse clicks do not count because a click says nothing about where the eyes were), the mean
+signal over the trailing `implicitCalibration.tailMs` (350) is mapped to ring coordinates
+and compared with that tile's centre. The miss, each component capped at `maxZeroStepFrac`
+(0.35 ring radii), is scaled by `offsetGain` (0.5) and converted to a step in `zero` through
+`A^-1` (the affine part only; the bend is small where tiles sit). The cap keeps one mis-fire from dragging `zero` far; the next correct
+fire pulls it back. Only `zero` moves - `A`, the curvature and the eye gain are a property of
+the user's range and stay as calibrated.
+
+The idea is the one used by the closest prior art. WebGazer.js self-calibrates continuously
+from mouse clicks, and Microsoft Research's gaze-typing work recalibrates from confirmed key
+selections ([EyeO: Autocalibrating Gaze Output with Gaze Input for Gaze Typing](https://arxiv.org/abs/2307.15039),
+Saran et al.), which is the same interaction shape as a dwell board.
+
+#### Drift guard (rest recentre)
+
+Dwell fires only correct drift when the user is actually selecting. The other thing a user
+does a lot is rest: the centre of the ring holds the picked-word text, so that is where they
+look to read it. While the word ring is showing and the filtered cursor sits inside the
+centre dead zone (radius under `dwell.ringMinRadiusFrac`, 0.55 of the ring) for more than
+`restRecentreMs` (2500), `zero` is pulled toward the current mean signal at `restRecentreGain`
+(0.02) per frame. A long rest is the best evidence of where centre is now. It does not run on
+the sentence list, which has tiles in the middle. `pointer.restRecentre: false` turns it off.
+
+#### Multiple faces
+
+Handled in the tracker, not the pointer: `numFaces: 2` and the largest outer-eye-corner
+distance wins (see Face tracking). There is no identity tracking and no lock to a person.
+
+#### Accuracy check (key `A`)
+
+Nine dots - the eight ring tile positions plus the centre - shown one at a time. For each it
+logs the angular error in degrees, the ring sector the cursor would have selected against the
+dot's own sector, and the pixel error, then a mean and worst over the nine. The sector line is
+the one that matters for use: a few degrees of error is fine as long as the sector is right.
+
+Simulated test results are in `README.md` (they are from `npm test` against synthetic
+captures with a known true mapping, not from real users).
 
 #### Why webcam gaze tracking has a real accuracy floor
 
-Worth being honest about before describing the next two mechanisms. Published appearance-based
+Worth being honest about, because it shapes the pointer's design. Published appearance-based
 gaze estimation from a consumer RGB webcam sits at roughly 2-3° of visual angle even in strong
 research systems - one appearance-based survey reports errors from 1.1° to 3.1° depending on
 method and dataset ([Evaluation of Appearance-Based Methods and Implications for Gaze-Based
@@ -272,79 +306,12 @@ features), measured a mean click-to-prediction distance of **233 px** in the fie
 Papoutsaki et al., IJCAI 2016) and lists head movement and drift over time as known, unsolved
 limitations of the approach - not implementation bugs, properties of the problem.
 
-Two things follow from this. First, the tile size and the dwell magnetic-snap radius
-(`dwell.snapPx`) are sized against this reality, not against an optimistic number - see
-`ui/dwell.ts`. Second, the two techniques below are not about pushing single-shot calibration
-accuracy lower (2nd-order-polynomial ridge regression is already close to the ceiling for this
-problem class - "polynomial functions higher than two orders cannot reduce extrapolation errors
-significantly," per the eye-tracker calibration literature) but about **not losing the accuracy
-a good calibration already bought**, which is where a real session actually goes wrong.
-
-#### Robust fitting: a calibration capture is not clean data
-
-`fitGazeModel` (`src/gaze/ridge.ts`) fits twice. The first pass is the ordinary weighted ridge
-fit described above. The second computes each sample's residual against that fit, derives a
-Huber weight from it - full weight inside a threshold set from the capture's own *median*
-residual (so it adapts to how noisy this particular session actually was, rather than a fixed
-pixel constant), smoothly discounted beyond it - and refits with the combined weight. This is
-standard practice for eye-tracker calibration specifically: RANSAC- or Huber-reweighted least
-squares is the published approach for handling exactly this failure mode (see the MMransac line
-of work referenced in [Testing multiple polynomial models for eye-tracker calibration](https://link.springer.com/article/10.3758/s13428-020-01371-x)).
-
-The failure mode it fixes: a hand crosses the camera for one frame, the landmark lock glitches,
-a lighting flicker throws the iris estimate off - nothing about that frame looks wrong *at
-capture time*, so without reweighting it gets baked into the whole session's model with an equal
-vote to a clean frame. `GazeModel.outlierFrac` reports what fraction got discounted; the app
-surfaces a specific toast when it is high ("tracking was unsteady") rather than the generic
-"loose, redo" message, because a shaky capture and a genuinely bad fit call for different advice.
-Simulated test result (`npm run test`): with ~8% of frames corrupted (a plausible-looking
-feature vector paired with a wildly wrong recorded target), the reweighted fit lands within
-18.8 px of the true mapping versus 63.3 px for the same data fit naively - `outlierFrac`
-reports 0.09, matching the injection rate.
-
-#### Implicit recalibration: a session drifts past its calibration
-
-A one-shot calibration is a snapshot of one head position at one moment. A real session is not
-static - the user shifts in their seat, the laptop gets nudged, twenty minutes pass - and until
-this mechanism existed, nothing in EyeTalk ever corrected for that: the model fit once at
-calibration time and never updated again. That is the literal mechanism behind "works right
-after calibrating, then starts drifting and circling one spot" - a real report from two testers
-who could not get usable tracking, worth taking as a session-drift problem rather than only a
-single-calibration-accuracy problem, given the accuracy-floor numbers above.
-
-The fix is not novel - it is the load-bearing technique in the two closest pieces of prior art.
-WebGazer.js self-calibrates continuously from mouse clicks, on the assumption that a click
-means the eyes were on it. Microsoft Research's gaze-typing work goes further and demonstrates
-it for the same interaction shape EyeTalk has - dwell/gaze selection on a keyboard-like board -
-recalibrating from confirmed key selections
-([EyeO: Autocalibrating Gaze Output with Gaze Input for Gaze Typing](https://arxiv.org/abs/2307.15039),
-Saran et al.).
-
-`GazeEstimator.recordImplicitCalibration` (`src/gaze/estimator.ts`) applies the same idea to a
-dwell-fire. Every time a word tile fires, the trailing `CONFIG.gaze.implicitCalibration.tailMs`
-of tracked frames become a new calibration sample at that tile's on-screen centre - real
-evidence of where the user is looking *right now*, at whatever head position they have actually
-drifted to. It is deliberately not treated as equal to an explicit calibration-dot frame: it
-carries `implicitCalibration.weight` (0.35) rather than 1, so a handful of dwell-fires nudge the
-fit toward the user's current position instead of overwriting the careful initial capture, and
-the Huber pass above gives a genuinely bad one (a mis-fire, a snap-assisted edge case) even less
-say. Samples are FIFO-capped at `implicitCalibration.maxSamples` so the model tracks where the
-user is *now*, not an ever-growing history. It is intentionally gaze-only: a mouse click on a
-tile goes through a different callback (`Board.onWord`, not the dwell-fire path in
-`app/App.ts`), precisely because a click carries no information about where the eyes were.
-
-It also does not reset the One Euro filter the way an explicit recalibration does
-(`GazeEstimator.refit(resetFilter)`) - the physical thing being tracked has not changed, only a
-weight nudge, and resetting smoothing state on every single word selection would itself look
-like the "random stuff" this mechanism exists to fix.
-
-Simulated test result (`npm run test`): a synthetic session calibrated at rest, then evaluated
-at a modest drifted head position (small enough nobody would notice making it) - before any
-implicit recalibration, error at that drift is **128.9 px**. After four simulated dwell-fires'
-worth of implicit samples (36 frames total, at four of eight ring positions), error at the
-other four, *never-fired* ring positions drops to **18.9 px** - an improvement that generalises
-rather than just memorising the tiles that happened to fire, while accuracy back at the
-original calibrated pose is 13.4 px.
+Two things follow from this. First, the tile size and the ring hit test, which picks a
+tile by direction rather than by box (`dwell.ringMinRadiusFrac`, `dwell.actionReachPx`), are
+built for this reality, not for an optimistic number - see `ui/zones.ts`. Second, the pointer
+does not chase single-shot precision: it asks for 13 dots, maps angles onto the ring, and
+spends its effort on **not losing the accuracy a calibration already bought** (implicit
+recalibration and the drift guard above), which is where a real session actually goes wrong.
 
 ### One Euro filter (`src/gaze/oneEuro.ts`)
 
@@ -364,17 +331,28 @@ Simulated test result (`npm run test`): 2.03 px maximum deviation under ±4 px i
 
 - **Arming** rejects fly-throughs: gaze crosses intermediate tiles on the way to the target,
   and without a delay every pass-over starts a ring fill.
-- **Hysteresis**: once engaged, a tile's hit box grows by 34 px, so noise at an edge cannot
-  reset an almost-full ring.
-- **Magnetic targets**: a gaze estimate is accurate to tens of pixels, so requiring the cursor
-  to land strictly inside a tile makes the user fight the residual error instead of just
-  looking at the word. A point outside every tile but within 48 px of one counts as a hit -
-  but only if that tile is nearer than the runner-up by 14 px, so a cursor parked in the gap
-  between two tiles snaps to neither rather than flickering between them.
+- **Hysteresis**: once engaged, an action tile's hit box grows by 34 px, and a ring tile's
+  sector widens by the same 34 px as an angle (34 px over the mean ring radius), so noise at
+  an edge cannot reset an almost-full ring.
+- **Ring tiles by direction**: a gaze estimate is off by tens of pixels, often ~100 px, and
+  the offset shifts with posture. Requiring the cursor to land inside a tile made the user
+  fight that error. On the ring (`ui/zones.ts`), the angle from the ring centre picks the
+  tile, so a biased cursor still selects the tile it is aimed toward, however far outside
+  the ring it lands. The inner 55% of the ring radius (`dwell.ringMinRadiusFrac`) selects
+  nothing, because that is where the centre text is read. The bottom action row is checked
+  first: a point at most 34 px above the row and within 120 px sideways of an action tile
+  (`dwell.actionReachPx`) picks the nearest action tile. Anything else falls through to the
+  ring, so a look at the bottom-centre reaches the bottom ring tile and never fires `Clear`.
+  The camera panel, when it is showing, selects nothing.
+- **Magnetic targets** (sentence list and other non-ring targets): a point outside every
+  tile but within 48 px of one counts as a hit, but only if that tile is nearer than the
+  runner-up by 14 px. A cursor parked in the gap between two tiles snaps to neither, rather
+  than flickering between them.
 - **Blink handling**: while the lids are shut the iris landmarks are meaningless, so the timer
   pauses and the elapsed clock is shifted forward on reopen - an ordinary 120 ms blink costs
-  zero progress. Both eyes closed for **more than 400 ms** is the deliberate cancel gesture,
-  which is well clear of the 100-150 ms involuntary blink.
+  zero progress. Both eyes closed for **more than 600 ms** is the deliberate cancel gesture,
+  which is well clear of the 100-150 ms involuntary blink: it drops the selection in progress
+  and returns to the category ring, keeping the words picked so far.
 - **Lock-on**: `exitSlopPx` hysteresis is spatial - it forgives a cursor a little outside the
   box. This is temporal, and layered on top: once a target is engaged, losing the hit test at
   all - to a different tile, or to nothing - does not act on it until that has held
@@ -513,33 +491,81 @@ in yet another worker would fix, and at that point `LlmClient.suggest()`'s exist
 ## Tuning
 
 Everything worth changing is in `src/core/config.ts`: dwell timings, blink thresholds, snap
-distances, One Euro `minCutoff`/`beta`, the compose grace window, the model ids. (Ridge lambda
-is deliberately *not* there - it is cross-validated per calibration.) Feature scale floors live
-in `src/gaze/featureSpec.ts`.
+distances, One Euro `minCutoff`/`beta`, the pointer and calibration settings, the compose grace
+window, the model ids. Calibration fits a small model (zero, a 2x2 map, a curvature term and an eye gain), and its
+only regularisation knob is `pointer.curvatureRidge`.
 
 The knobs most likely to need adjusting for a given user:
 
 - `dwell.commitMs` (900 ms) - lower for a confident user, higher if they mis-fire.
-- `dwell.snapPx` (48) - raise if the cursor consistently lands just short of tiles. Above
-  ~70 px it starts bridging the gaps between neighbouring tiles on the ring.
+- `dwell.ringMinRadiusFrac` (0.55) - the dead zone around the centre text, as a fraction of
+  the ring radius. Lower it if inner looks at a tile do not register, raise it if reading the
+  picked words starts a ring fill. The drift guard uses the same radius.
+- `dwell.actionReachPx` (120) - how far sideways of a bottom action tile a look still picks
+  it. Keep it below the gap between `Clear` and the bottom-centre, or a look at the bottom
+  ring tile can fire `Clear`.
+- `dwell.snapPx` (48) - sentence list only now: raise if the cursor consistently lands just
+  short of a sentence. Above ~70 px it starts bridging the gaps between neighbouring tiles.
 - `gaze.oneEuro.beta` (0.012) - raise if the cursor lags behind fast looks, lower if it
   jitters while still.
-- `gaze.useEdgeMidpoints` (true) - set false for a 9-dot calibration if 13 is too long for
-  the user. Accuracy near the screen edges gets noticeably worse.
-- `gaze.swayDots` (1 full dot + 4 corner dots, ~15 s total) - set to `[]` to skip the sway
-  pass. Calibration gets 15 seconds shorter and the cursor stops surviving the user changing
-  position. Not recommended.
-- `gaze.implicitCalibration.weight` (0.35) - how much a dwell-fire's samples count relative to
-  an explicit calibration-dot frame. Raise if the cursor still feels stuck after several
-  selections; lower (or set `enabled: false`) if the cursor visibly wanders after selections in
-  a way that looks like it is chasing mis-fires rather than correcting drift.
+- `gaze.implicitCalibration.offsetGain` (0.5) - how far each dwell-fire moves `zero` toward
+  what it measured. Lower if the cursor visibly jumps after selections in a way that looks
+  like it is chasing mis-fires rather than correcting drift; `tailMs` (350) is the window of
+  signal averaged at each fire; `enabled: false` turns the whole mechanism off, after which a
+  change of position needs `C`.
+- `pointer.eyeGain` (1.5) - weight of the iris term against head pose. Raise it for a user who
+  steers mostly with their eyes and has clean iris tracking, lower it if the cursor wobbles
+  with eye movement (glasses, low lids). The physical value is about 2.5. Calibration may
+  replace it with a measured gain.
+- `pointer.eyeGainGrid` ([0.5, 1, 1.5, 2, 2.5, 3]) - the gains the calibration fit tries, each
+  with both signs.
+- `pointer.eyeSign` (+1) - the fallback sign of the eye term when calibration has no evidence
+  either way. Flip it if, on someone who moves head and eyes together, the `calib split` line
+  shows the head and eye terms of an axis with opposite signs. `eyeSignMinRelDiff` (0.15) and
+  `eyeFitMinAbsDiffFrac` (0.01 ring radii) set how clear the evidence must be before
+  calibration replaces the config gain and sign.
+- `pointer.curvatureRidge` (0.3) - ridge penalty on the three curvature coefficients. Raise it
+  for a flatter, more linear map; lower it if far-out tiles keep landing short.
+- `pointer.minExcursionRad` (0.025) - the smallest ring signal half-span that counts as a real
+  calibration. Lower it for a user who truly cannot move much, accepting a twitchier cursor.
+- `pointer.maxZeroStepFrac` (0.35) - cap on how far one fire can move `zero`, in ring radii
+  per axis (1 = the ring edge), measured before `offsetGain` scales it.
+- `pointer.restRecentre` (true), `restRecentreMs` (2500), `restRecentreGain` (0.02) - the
+  drift guard. Raise the delay or lower the gain if the cursor creeps while someone is
+  reading their picked words; `restRecentre: false` turns it off.
+- `calibration.stillRad` (0.015), `stillMs` (150), `maxWaitMs` (500) - the arrival gate. Raise
+  `stillRad` or `maxWaitMs` for a user whose signal is naturally jittery.
+- `calibration.settleMs` (500), `firstSettleMs` (600), `dotTravelMs` (400) - minimum time before
+  the gate is checked. Raise them for a user who is slow to get to each dot.
+- `calibration.innerRingFrac` (0.65) - how far out the 4 inner dots sit, in ring radii.
+- `calibration.centreCaptureMs` (1000), `captureMs` (650) - capture length per dot. Raise for a
+  noisier signal; the median is taken over whatever frames arrive.
 
-Watch the console after calibrating: it logs the chosen lambda, the cross-validated and
-training errors, and `outlierFrac` (fraction of frames the Huber pass downweighted - high means
-a shaky capture, not a bad fit). A chosen lambda at the top of the grid (10) means the capture
-was noisy and the model has shrunk toward a near-linear map. After each dwell-fire, a
-`console.debug` line reports the running implicit-sample count and current error - useful for
-watching the drift-correction happen live during a session.
+Watch the console after calibrating. All lines are `console.info` with a `[gaze]` prefix:
+
+- `calib eyeFit config(g=1.5,s=+1) resid=<frac> best(g=<g>,s=<+1|-1>) resid=<frac>
+  using=(g=<g>,s=<s>) (config|measured)` - the residual (in ring radii) of the config gain and
+  sign and of the best grid pair, and which one was kept.
+- `calib split x head=<rad> eye=<rad> | y head=<rad> eye=<rad>` - how much of each axis's travel
+  came from the head and from the eyes (the eye term uses the chosen sign). On a user who
+  moves head and eyes together, head and eye of an axis should share a sign; if they do not,
+  `eyeSign` is wrong.
+- `calib zero=<x>,<y>rad A=[a,b,c,d] reach~<x>,<y>deg Qu=[..] Qv=[..] eye=g<gain>,s<sign>
+  resid=<frac> (affine <frac>) ring radii frames=<13 counts> noPose=<n>% arrival=<13 values>ms
+  elapsed=<ms>ms` - the model, how far in degrees the ring edge is, the curvature
+  coefficients, the chosen eye pair, the rms residual with and without curvature, per-dot
+  frame counts in calibration order, the share of frames without a transform matrix, how long
+  each dot took to arrive, and the total time. A tiny `reach` or a high `noPose` explains a
+  calibration that rejects.
+- `calib rejected <reason>: <message> (<elapsed>ms)` - why a run restarted or was refused.
+- `fire <id> at <x>,<y>: err <x>,<y>deg zero step <x>,<y>deg` - after each gaze dwell-fire, how
+  far off the cursor was at that tile and how far `zero` moved. Useful for watching the
+  drift correction happen live. Steady large errors with small steps point at a mis-set
+  `eyeGain` or `offsetGain`.
+- `accuracy check: mean <deg>deg <px>px worst <deg>deg over <n> dots`, then per dot
+  `dot <i> at <x>,<y>: error <deg>deg <px>px sector <got>/<want>` - the `A` check. A wrong
+  sector with small error is a dot near a sector boundary; consistent wrong sectors are an
+  offset (recalibrate with `C`, or sit still and let a few selections correct it).
 
 ## Layout
 
@@ -549,7 +575,7 @@ src/
   app/               orchestrator (screen flow + wiring)
   core/              config.ts, types.ts - the shared vocabulary
   vision/            camera, FaceLandmarker, feature extraction, debug overlay
-  gaze/              ridge fit, feature spec, One Euro, estimator, cursor
+  gaze/              face pointer (signal, fit, mapping), One Euro filter, cursor
   nlp/               worker client, worker entry, prompt building/parsing
   audio/             speech synthesis, WebAudio cues
   ui/                board, tiles, dwell machine, calibration, hud, screens
@@ -646,9 +672,9 @@ Small things that look odd and are load-bearing:
   refuse to decode a fully detached video, which stalls the tracking loop.
 - **`FaceMetrics` is split from the landmark array.** Calibration retains hundreds of
   samples; keeping 478 landmark objects alive per sample is pure waste.
-- **`faceWidth`** (outer-eye-corner distance as a fraction of frame width) is a proxy for
-  head distance. With `nose`, it is what lets the model tell "leaned closer" apart from
-  "looked down", which rotation alone cannot.
+- **`scale`** (outer-eye-corner distance as a fraction of frame width) and `nose` are still
+  measured per frame and kept on `FaceMetrics`; `scale` also picks the nearest face when two
+  are in view. They cost nothing.
 - **A generation error does not mark the model failed.** One bad decode is recoverable; only
   a load failure is terminal.
 - **Selecting the same word twice in a row is ignored** - it is almost always a double-fire

@@ -1,46 +1,24 @@
 
 import { CONFIG, sidePanelWidthCss } from '../core/index.ts';
-import type { FaceFrame, Point, RawCalibrationSample } from '../core/types.ts';
+import type { FaceFrame, FaceMetrics, Point } from '../core/types.ts';
 import { toMetrics } from '../vision/features.ts';
+import { CALIB_ORDER, type CalibDot, type CalibRole, pointerSignal } from '../gaze/facePointer.ts';
 import { cueCalibrationDone, cueDotArrived } from '../audio/sound.ts';
 import { CORNER_LOGO } from './brand.ts';
+import { solveRingLayout } from './zones.ts';
 
-const GRID = [0.1, 0.5, 0.9];
-const EDGE_MIDPOINTS: ReadonlyArray<[number, number]> = [
-  [0.3, 0.1],
-  [0.7, 0.9],
-  [0.1, 0.7],
-  [0.9, 0.3],
-];
-
-/**
- * the clear / speak tiles sit below the 0.9 row, in the bottom corners. without
- * a dot there the cursor only reaches them by extrapolation, and it'd slide
- * along a diagonal edge short of clear. centres match board.ts: the action row
- * is `bottom-6 px-6`, tiles ~74px tall, clear ~144px wide, speak ~165px.
- */
-function actionRowDots(w: number, h: number): Point[] {
-  const y = h - 24 - 37;
-  return [
-    { x: 24 + 72, y },
-    { x: w - 24 - 82, y },
-  ];
-}
-
-interface CalibDot {
+interface DotSpec {
+  role: CalibRole;
   at: Point;
-  /** sway dots ask for head movement instead of stillness. */
-  sway: boolean;
-  /** full sway dots sweep rotation + translation; corner dots are rotation-only. */
-  swayFull: boolean;
 }
 
 export interface CalibrationResult {
-  samples: RawCalibrationSample[];
-  /** points where we captured too few frames - usually a lost face. */
-  weakPoints: number[];
-  /** spread of head pose across the whole capture, in radians (yaw, pitch). */
-  headSpread: { yaw: number; pitch: number };
+  /** frames per dot, in CALIB_ORDER. empty when cancelled. */
+  dots: CalibDot[];
+  /** per dot, how long past the settle the arrival gate waited, ms. */
+  arrivalWaitMs: number[];
+  /** first dot shown to last dot captured, ms. */
+  elapsedMs: number;
 }
 
 export class CalibrationScreen {
@@ -54,17 +32,21 @@ export class CalibrationScreen {
   private cancelTrack: HTMLElement;
   private bubble: HTMLElement;
 
-  private points: CalibDot[] = [];
+  private points: DotSpec[] = [];
   private index = 0;
-  private samples: RawCalibrationSample[] = [];
-  private weakPoints: number[] = [];
-  private captured = 0;
+  private frames: FaceMetrics[] = [];
+  private dots: CalibDot[] = [];
   private phase: 'settle' | 'capture' | 'done' = 'settle';
   private phaseStart = 0;
   private resolve: ((r: CalibrationResult) => void) | null = null;
   private cancelled = false;
   private arrivalTimer = 0;
   private closedSince: number | null = null;
+  /** arrival gate state: where the current still run started, and when. */
+  private stableRef: Point | null = null;
+  private stableSince = 0;
+  private arrivalWaitMs: number[] = [];
+  private runStart = 0;
 
   constructor() {
     this.root = document.createElement('div');
@@ -78,11 +60,11 @@ export class CalibrationScreen {
               Calibrating
             </div>
             <div data-hint class="text-sm font-medium text-slate-200">
-              Follow with your EYES only.
+              Look at the dot
             </div>
           </div>
           <div data-counter class="mono rounded-lg bg-ink-800 px-3 py-1.5 text-sm
-               font-semibold text-accent-300">1 / 20</div>
+               font-semibold text-accent-300">1 / ${CALIB_ORDER.length}</div>
         </div>
       </div>
 
@@ -137,43 +119,52 @@ export class CalibrationScreen {
     this.overlaySlot.appendChild(el);
   }
 
+  /** the 13 dots in ring coords, placed on the ring the board will lay out. */
   private buildPoints(): void {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const grid: Point[] = [];
-    for (const fy of GRID) for (const fx of GRID) grid.push({ x: fx * w, y: fy * h });
+    const { rx, ry } = solveRingLayout(w, h);
+    const cx = w / 2;
+    const cy = h / 2;
+    this.points = CALIB_ORDER.map((role) => ({ role, at: { x: cx + rx * role.u, y: cy + ry * role.v } }));
+  }
 
-    let ordered: Point[];
-    if (CONFIG.gaze.useEdgeMidpoints) {
-      const extra = EDGE_MIDPOINTS.map(([fx, fy]) => ({ x: fx * w, y: fy * h }));
-      ordered = [
-        grid[0]!, grid[8]!, grid[2]!, grid[6]!, grid[4]!,
-        extra[0]!, grid[7]!, extra[1]!, grid[1]!,
-        extra[2]!, grid[5]!, extra[3]!, grid[3]!,
-      ];
-    } else {
-      ordered = grid;
-    }
-    ordered.push(...actionRowDots(w, h));
-
-    this.points = ordered.map((at) => ({ at, sway: false, swayFull: false }));
-    for (const { at: [fx, fy], full } of CONFIG.gaze.swayDots) {
-      this.points.push({ at: { x: fx * w, y: fy * h }, sway: true, swayFull: full });
-    }
+  /**
+   * the live camera panel sits bottom-right and on a small window a dot can
+   * land near it. a
+   * mirrored video of your own face right behind the fixation target pulls
+   * the eye off it, so the panel hides while a dot is heading there.
+   */
+  private hideOverlayUnderDot(p: Point): void {
+    const r = this.overlaySlot.getBoundingClientRect();
+    // the slot has no height of its own; size it by the panel's 16:9 canvas.
+    const panelH = r.height || (r.width * 9) / 16;
+    const top = r.height ? r.top : r.bottom - panelH;
+    const pad = 60;
+    const under =
+      r.width > 0 && p.x >= r.left - pad && p.x <= r.right + pad && p.y >= top - pad;
+    this.overlaySlot.style.visibility = under ? 'hidden' : '';
   }
 
   /** run the whole sequence. */
   start(): Promise<CalibrationResult> {
     this.buildPoints();
+    return this.run();
+  }
+
+  private run(): Promise<CalibrationResult> {
     this.index = 0;
-    this.samples = [];
-    this.weakPoints = [];
+    this.dots = [];
+    this.frames = [];
+    this.arrivalWaitMs = [];
     this.cancelled = false;
-    this.yawLo = this.pitchLo = Infinity;
-    this.yawHi = this.pitchHi = -Infinity;
     this.closedSince = null;
     this.cancelTrack.style.opacity = '0';
     this.cancelBar.style.width = '0%';
+    // a restart after a rejected fit reuses this screen, so empty the bar.
+    this.progressBar.style.width = '0%';
+    this.overlaySlot.style.visibility = '';
+    this.runStart = performance.now();
     this.beginPoint();
 
     const onKey = (e: KeyboardEvent) => {
@@ -189,30 +180,37 @@ export class CalibrationScreen {
     });
   }
 
+  /** true after esc or the eyes-closed hold ended the last run. */
+  get wasCancelled(): boolean {
+    return this.cancelled;
+  }
+
   cancel(): void {
     this.cancelled = true;
     this.phase = 'done';
     this.clearArrivalTimer();
-    this.resolve?.({ samples: [], weakPoints: [], headSpread: { yaw: 0, pitch: 0 } });
+    this.resolve?.({ dots: [], arrivalWaitMs: [], elapsedMs: 0 });
     this.resolve = null;
   }
 
   private beginPoint(): void {
     const p = this.points[this.index]!.at;
-    const travelMs = this.index === 0 ? 0 : CONFIG.gaze.dotTravelMs;
+    const travelMs = this.index === 0 ? 0 : CONFIG.calibration.dotTravelMs;
 
     this.dot.style.transition = travelMs
       ? `left ${travelMs}ms cubic-bezier(0.4,0,0.2,1), top ${travelMs}ms cubic-bezier(0.4,0,0.2,1)`
       : 'none';
     this.dot.style.left = `${p.x}px`;
     this.dot.style.top = `${p.y}px`;
+    this.hideOverlayUnderDot(p);
     // below by default; flip above for a dot low enough on screen that a
     // below-anchored bubble would run past the bottom edge.
     this.bubble.dataset.pos = p.y > window.innerHeight * 0.62 ? 'above' : 'below';
 
-    this.captured = 0;
+    this.frames = [];
     this.phase = 'settle';
     this.phaseStart = performance.now();
+    this.stableRef = null;
     this.counter.textContent = `${this.index + 1} / ${this.points.length}`;
     this.setFill(0);
 
@@ -240,30 +238,6 @@ export class CalibrationScreen {
   private clearArrivalTimer(): void {
     if (this.arrivalTimer) clearTimeout(this.arrivalTimer);
     this.arrivalTimer = 0;
-  }
-
-  /* --------------------------------------------------------- head spread ---- */
-  /*
-   * running min/max of yaw and pitch across everything recorded. cheap, and it
-   * is the only way to distinguish "the sway pass worked" from "the user sat
-   * perfectly still through it" - which produce indistinguishable fitted models
-   * but very different cursors, and only one of them is the user's fault.
-   */
-  private yawLo = Infinity;
-  private yawHi = -Infinity;
-  private pitchLo = Infinity;
-  private pitchHi = -Infinity;
-
-  private trackHeadSpread(f: FaceFrame): void {
-    if (f.yaw < this.yawLo) this.yawLo = f.yaw;
-    if (f.yaw > this.yawHi) this.yawHi = f.yaw;
-    if (f.pitch < this.pitchLo) this.pitchLo = f.pitch;
-    if (f.pitch > this.pitchHi) this.pitchHi = f.pitch;
-  }
-
-  private headSpread(): { yaw: number; pitch: number } {
-    const span = (lo: number, hi: number) => (isFinite(lo) && isFinite(hi) ? hi - lo : 0);
-    return { yaw: span(this.yawLo, this.yawHi), pitch: span(this.pitchLo, this.pitchHi) };
   }
 
   private setFill(v: number): void {
@@ -313,38 +287,50 @@ export class CalibrationScreen {
     if (this.phase === 'done' || this.cancelled) return false;
     if (this.checkEyesClosedCancel(frame, t)) return false;
 
+    const cfg = CONFIG.calibration;
     const dot = this.points[this.index]!;
     const elapsed = t - this.phaseStart;
-    const captureMs = !dot.sway
-      ? CONFIG.gaze.dotCaptureMs
-      : dot.swayFull
-        ? CONFIG.gaze.swayCaptureMsFull
-        : CONFIG.gaze.swayCaptureMsPartial;
-    const wanted = !dot.sway
-      ? CONFIG.gaze.samplesPerPoint
-      : dot.swayFull
-        ? CONFIG.gaze.swaySamplesFull
-        : CONFIG.gaze.swaySamplesPartial;
+    const first = this.index === 0;
+    const centre = dot.role.label === 'centre';
+    const hint = centre ? 'Look at the dot' : 'Follow the dot with your head and eyes';
+    // skip frames where the face was lost or the user is blinking.
+    const usable =
+      !!frame &&
+      frame.blinkLeft < CONFIG.blink.closedThreshold &&
+      frame.blinkRight < CONFIG.blink.closedThreshold;
 
     if (this.phase === 'settle') {
-      const travelMs = this.index === 0 ? 0 : CONFIG.gaze.dotTravelMs;
+      const travelMs = first ? 0 : cfg.dotTravelMs;
       const settling = elapsed < travelMs;
-      // one instruction per dot type, said the same way everywhere it's said:
-      // the top panel, the bubble on the dot, the whole way through settle and
-      // capture. simpler than the old per-segment prompts, and it means the
-      // one thing the user actually needs to know - eyes only, or eyes and
-      // head - never changes mid-dot.
-      this.hint.textContent = settling
-        ? 'Follow the dot.'
-        : dot.sway
-          ? 'Follow with your EYES and HEAD.'
-          : 'Follow with your EYES only.';
-      // the bubble stays quiet until the dot has actually landed - showing an
-      // instruction while it is still travelling reads as meant for the wrong dot.
-      this.setBubble(settling ? null : dot.sway ? 'Eyes + head' : 'Eyes only');
-      // never start recording while the dot is still travelling, even if a
-      // config edit ever made the travel longer than the settle window.
-      if (elapsed >= Math.max(CONFIG.gaze.dotSettleMs, travelMs)) {
+      this.hint.textContent = hint;
+      // the bubble stays quiet until the dot has landed - an instruction while
+      // it is still travelling reads as meant for the wrong dot.
+      this.setBubble(settling ? null : centre ? 'Look here' : 'Follow me');
+      const settleMs = Math.max(first ? cfg.firstSettleMs : cfg.settleMs, travelMs);
+      if (settling) return true;
+
+      // arrival gate: record only once the pointer signal has held still for
+      // a bit, so frames from the way there stay out. the still run starts
+      // when the dot lands, so it can finish inside the settle. a lost face
+      // or a blink restarts it; a jittery signal times out and records.
+      if (usable) {
+        const s = pointerSignal(frame, CONFIG.pointer.eyeSign);
+        const still =
+          this.stableRef !== null &&
+          Math.abs(s.x - this.stableRef.x) <= cfg.stillRad &&
+          Math.abs(s.y - this.stableRef.y) <= cfg.stillRad;
+        if (!still) {
+          this.stableRef = s;
+          this.stableSince = t;
+        }
+      } else {
+        this.stableRef = null;
+      }
+      if (elapsed < settleMs) return true;
+      const arrived = this.stableRef !== null && t - this.stableSince >= cfg.stillMs;
+      const waited = elapsed - settleMs;
+      if (arrived || waited >= cfg.maxWaitMs) {
+        this.arrivalWaitMs.push(Math.round(waited));
         this.phase = 'capture';
         this.phaseStart = t;
       }
@@ -352,30 +338,15 @@ export class CalibrationScreen {
     }
 
     // --- capture phase ---
-    this.hint.textContent = dot.sway
-      ? 'Follow with your EYES and HEAD.'
-      : 'Follow with your EYES only.';
-    this.setBubble(dot.sway ? 'Eyes + head' : 'Eyes only');
+    const captureMs = centre ? cfg.centreCaptureMs : cfg.captureMs;
+    this.hint.textContent = hint;
+    this.setBubble(centre ? 'Look here' : 'Follow me');
     const frac = Math.min(elapsed / captureMs, 1);
     this.setFill(frac);
+    if (usable) this.frames.push(toMetrics(frame));
 
-    // skip frames where the face was lost or the user happens to be blinking:
-    // both produce iris features that have nothing to do with where they look.
-    const usable =
-      frame &&
-      frame.blinkLeft < CONFIG.blink.closedThreshold &&
-      frame.blinkRight < CONFIG.blink.closedThreshold;
-
-    if (usable && this.captured < wanted) {
-      this.samples.push({ metrics: toMetrics(frame), target: dot.at });
-      this.captured++;
-      this.trackHeadSpread(frame);
-    }
-
-    if (frac >= 1 || this.captured >= wanted) {
-      // fewer than a third of the expected frames means this dot is unreliable.
-      if (this.captured < wanted / 3) this.weakPoints.push(this.index);
-
+    if (frac >= 1) {
+      this.dots.push({ role: dot.role, frames: this.frames });
       this.index++;
       const done = this.index >= this.points.length;
       this.progressBar.style.width = `${(this.index / this.points.length) * 100}%`;
@@ -385,9 +356,9 @@ export class CalibrationScreen {
         this.clearArrivalTimer();
         cueCalibrationDone();
         this.resolve?.({
-          samples: this.samples,
-          weakPoints: this.weakPoints,
-          headSpread: this.headSpread(),
+          dots: this.dots,
+          arrivalWaitMs: this.arrivalWaitMs,
+          elapsedMs: Math.round(performance.now() - this.runStart),
         });
         this.resolve = null;
         return false;

@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/math.test.mjs && node tests/vocab.test.mjs"
+    "test": "node tests/pointer.test.mjs && node tests/oneEuro.test.mjs && node tests/vocab.test.mjs && node tests/dwell.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

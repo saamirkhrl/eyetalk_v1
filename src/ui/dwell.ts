@@ -1,6 +1,7 @@
 
 import { CONFIG } from '../core/config.ts';
 import type { Point } from '../core/types.ts';
+import { pickTarget, type RingGeometry, type ZoneRect } from './zones.ts';
 
 export type DwellState = 'idle' | 'hover' | 'arming' | 'committing' | 'cooldown';
 
@@ -17,6 +18,11 @@ interface CachedTarget extends DwellTarget {
 
 export class DwellController {
   private targets: CachedTarget[] = [];
+  /** ring layout while the ring is the thing being aimed at, else null. */
+  private ring: RingGeometry | null = null;
+  /** read fresh on every `refreshrects()`, so the d toggle and resizes are picked up. */
+  private exclusionSource: (() => ZoneRect[]) | null = null;
+  private exclusions: ZoneRect[] = [];
   private activeId: string | null = null;
   private enteredAt = 0;
   private state: DwellState = 'idle';
@@ -71,8 +77,10 @@ export class DwellController {
   }
 
   /** register the tiles currently on screen. */
-  setTargets(targets: DwellTarget[]): void {
+  setTargets(targets: DwellTarget[], ring: RingGeometry | null = this.ring): void {
     this.reset();
+    this.ring = ring;
+    this.exclusions = this.exclusionSource?.() ?? [];
     this.targets = targets.map((t) => ({ ...t, rect: t.el.getBoundingClientRect() }));
     // one swap can register targets more than once (the ring, then an action
     // tile appearing), so a guard set by the first call survives later ones
@@ -97,8 +105,20 @@ export class DwellController {
     this.exitPending = true;
   }
 
+  /** screen areas that must never select anything (the camera panel). */
+  setExclusions(source: () => ZoneRect[]): void {
+    this.exclusionSource = source;
+    this.exclusions = source();
+  }
+
+  /** new ring layout without re-registering targets (window resize). */
+  setRing(ring: RingGeometry | null): void {
+    this.ring = ring;
+  }
+
   refreshRects(): void {
     for (const t of this.targets) t.rect = t.el.getBoundingClientRect();
+    this.exclusions = this.exclusionSource?.() ?? [];
   }
 
   /** wipe all progress without emitting a cancel event. */
@@ -146,6 +166,19 @@ export class DwellController {
   }
 
   private hitTest(p: Point): CachedTarget | null {
+    if (this.ring) {
+      const { exitSlopPx, actionReachPx, ringMinRadiusFrac } = CONFIG.dwell;
+      const id = pickTarget(p, {
+        ring: this.ring,
+        actions: this.targets
+          .filter((t) => t.id.startsWith('action:'))
+          .map((t) => ({ id: t.id, rect: t.rect })),
+        exclusions: this.exclusions,
+        params: { exitSlopPx, actionReachPx, ringMinRadiusFrac },
+        lockedId: this.activeId,
+      });
+      return this.targets.find((t) => t.id === id) ?? null;
+    }
     if (this.activeId) {
       const cur = this.targets.find((t) => t.id === this.activeId);
       if (cur && inRect(p, cur.rect, CONFIG.dwell.exitSlopPx)) return cur;
