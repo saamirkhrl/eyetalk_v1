@@ -225,8 +225,9 @@ export const CONFIG = {
   blink: {
     /** blendshape score above which an eye counts as closed. */
     closedThreshold: 0.45,
-    /** both eyes closed longer than this = the deliberate "take me back"
-     *  gesture: drops the dwell in progress and returns to the category ring.
+    /** both eyes closed longer than this = the deliberate "start over"
+     *  gesture: drops the dwell in progress, clears the picked words and returns
+     *  to the category ring.
      *  involuntary blinks are 100-150 ms, so 600 ms separates them cleanly
      *  and a slow blink no longer trips it. */
     cancelHoldMs: 600,

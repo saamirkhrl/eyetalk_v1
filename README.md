@@ -93,7 +93,7 @@ correcting itself as you select words and while you rest on the centre text.
 | Stop speech | - | `S` (caregiver) |
 | Hide / show the camera view | - | `D` (caregiver) |
 | Accuracy check: 9 dots, then mean / worst error in degrees and px | - | `A` (caregiver) |
-| Cancel and go back to the categories | shut both eyes for about half a second | - |
+| Clear the picked words and go back to the categories | shut both eyes for about half a second | - |
 
 Every tile is also clickable, so the whole app works with just a mouse if the camera is
 unavailable.

@@ -20,7 +20,7 @@ settings menu or undo tile. Caregiver-only controls live on the keyboard:
 | Recalibrate | - | `C` |
 | Accuracy check (9 dots, mean / worst error) | - | `A` |
 | Stop speech | - | `S` |
-| Cancel and go back to the categories | shut both eyes for about half a second | - |
+| Clear the picked words and go back to the categories | shut both eyes for about half a second | - |
 | Cancel calibration or the accuracy check | shut both eyes and hold ~2 s (calibration only) | `Esc` |
 
 You point with your face: a small head turn plus the eyes, a scaled iris term added to head yaw
@@ -351,8 +351,8 @@ Simulated test result (`npm run test`): 2.03 px maximum deviation under ±4 px i
 - **Blink handling**: while the lids are shut the iris landmarks are meaningless, so the timer
   pauses and the elapsed clock is shifted forward on reopen - an ordinary 120 ms blink costs
   zero progress. Both eyes closed for **more than 600 ms** is the deliberate cancel gesture,
-  which is well clear of the 100-150 ms involuntary blink: it drops the selection in progress
-  and returns to the category ring, keeping the words picked so far.
+  which is well clear of the 100-150 ms involuntary blink: it drops the selection in progress,
+  clears the words picked so far and returns to the category ring.
 - **Lock-on**: `exitSlopPx` hysteresis is spatial - it forgives a cursor a little outside the
   box. This is temporal, and layered on top: once a target is engaged, losing the hit test at
   all - to a different tile, or to nothing - does not act on it until that has held

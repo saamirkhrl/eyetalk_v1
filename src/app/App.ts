@@ -93,13 +93,12 @@ export class App {
     this.dwell.onCancel(() => {
       this.cursor.setState('cancelled');
       this.cancelCompose();
-      // the long blink is "take me back": home to the category ring from
-      // wherever the user is. picked words stay, same as back to categories.
+      // the long blink is "start over": drops the picked words and goes home
+      // to the category ring from wherever the user is.
       if (this.phase !== 'board') return;
-      const home = this.board.mode !== 'concepts' || this.board.currentCategory !== null;
-      if (this.board.mode !== 'concepts') this.backToConcepts();
-      this.showCategories();
-      toast(home ? 'Back to categories' : 'Selection cancelled', 'warn', 1400);
+      const had = this.concepts.length > 0;
+      this.resetRound();
+      toast(had ? 'Words cleared' : 'Selection cancelled', 'warn', 1400);
     });
     this.dwell.onState((s) => {
       this.dwellCommitting = s === 'committing';
