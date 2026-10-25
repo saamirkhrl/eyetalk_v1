@@ -154,9 +154,6 @@ categories.
 
 ---
 
-Curious how the gaze tracking, calibration, and fallback system actually work? See
-[ARCHITECTURE.md](ARCHITECTURE.md).
-
 ## How this was built
 
 I designed and planned EyeTalk and programmed the main blueprint of the app myself. I used
